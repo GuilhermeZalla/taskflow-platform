@@ -1,5 +1,12 @@
 # TaskFlow — Status atual (16/11/2026)
 
+## Release 1.1.1 — 16/11/2026
+
+- Release incremental após a 1.1.0: alinhamento responsivo dos filtros do Calendário e demonstração pública apenas do frontend, com dados fictícios no navegador. O pacote do frontend foi atualizado para 1.1.1.
+- A hospedagem do sistema completo (API, MySQL e envio real de e-mails) permanece pendente e depende de infraestrutura, HTTPS, segredos, logs, backup/restauração, runtime ASP.NET Core 10 e definição da licença MediatR.
+- Validação da release: 26 testes do frontend aprovados e build público com TypeScript/Vite aprovado. Nenhum código de backend mudou desde a 1.1.0.
+- [ ] Conferência visual da demo pública pelo titular em desktop e celular.
+
 ## Demonstração pública — 16/11/2026
 
 - Frontend publicado em https://guilhermezalla.github.io/taskflow-platform/ pelo GitHub Pages, com build automático da branch `main` concluído com sucesso. HTML, JavaScript e CSS responderam HTTP 200.
