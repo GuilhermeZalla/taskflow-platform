@@ -1,5 +1,11 @@
 # TaskFlow — Status atual (16/11/2026)
 
+## Demonstração pública — 16/11/2026
+
+- Frontend publicado em https://guilhermezalla.github.io/taskflow-platform/ pelo GitHub Pages, com build automático da branch `main` concluído com sucesso. HTML, JavaScript e CSS responderam HTTP 200.
+- A versão pública abre diretamente com dados fictícios salvos no navegador. O build bloqueia requisições de autenticação, usa o adaptador local para `/api/` e não inclui a URL da API local. As rotas usam fragmento (`#`) para funcionar no Pages.
+- O navegador automatizado desta sessão não ficou disponível para uma conferência visual final. A hospedagem do sistema completo, com API, MySQL e e-mails reais, continua na etapa futura e depende de servidor/domínio.
+
 ## Ajustes após a release 1.1.0 — validados em 16/11/2026
 
 - Calendário: os filtros "Exibir" e "Incluir concluídos" foram agrupados e alinhados, com quebra responsiva em telas menores. O build do frontend passou e o titular confirmou a aparência final no navegador.

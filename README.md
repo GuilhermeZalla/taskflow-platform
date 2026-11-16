@@ -2,11 +2,15 @@
 
 A project and task management web application built for a portfolio. It brings workspaces, priorities, assignees, deadlines, and delivery tracking together in an interface available in Portuguese and English.
 
-The frontend uses React and TypeScript; the API is built with C#, ASP.NET Core, Entity Framework Core, and MySQL. The project includes a demo mode with fictional data in the browser and a separate authentication and persistence flow through the API. **There is no native app or documented production deployment.**
+The frontend uses React and TypeScript; the API is built with C#, ASP.NET Core, Entity Framework Core, and MySQL. The project includes a demo mode with fictional data in the browser and a separate authentication and persistence flow through the API. **There is no native app or public deployment of the full stack.**
+
+**[Open the public TaskFlow demo](https://guilhermezalla.github.io/taskflow-platform/)** — a frontend-only build on GitHub Pages. It opens directly in demo mode, uses fictional data stored in this browser, and does not connect to the API or MySQL. Account registration, login, email delivery, and persistent multi-user collaboration are available only when running the full stack locally.
 
 ![TaskFlow authentication screen](docs/screenshots/login-desktop.png)
 
 ## Demos
+
+The public demo is built automatically from `main` by [the GitHub Pages workflow](.github/workflows/deploy-demo.yml). It uses hash-based routes so internal pages remain accessible after a refresh. The local full-stack build keeps its existing routes and authentication flow.
 
 GIFs assembled from real interface captures using **Explore demo** mode. The data is fictional and stored in the browser used for the capture; these media do not demonstrate MySQL integration, real authentication, or email delivery.
 
