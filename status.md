@@ -1,36 +1,36 @@
-# TaskFlow — Status atual (13/11/2026)
+# TaskFlow — Status atual (16/11/2026)
 
-## Ajustes após a release 1.1.0 — 13/11/2026
+## Ajustes após a release 1.1.0 — validados em 16/11/2026
 
-- Calendário: os filtros "Exibir" e "Incluir concluídos" foram agrupados e alinhados, com quebra responsiva em telas menores. O build do frontend passou; a aparência final ainda precisa ser conferida no navegador pelo titular.
-- Pendência funcional: confirmar no Mailtrap Sandbox o recebimento de uma notificação externa de atribuição, menção ou prazo.
-- Etapa futura: hospedagem pública, incluindo servidor/domínio, HTTPS, segredos, logs, backups, restauração e conferência da licença MediatR para produção.
+- Calendário: os filtros "Exibir" e "Incluir concluídos" foram agrupados e alinhados, com quebra responsiva em telas menores. O build do frontend passou e o titular confirmou a aparência final no navegador.
+- Notificações externas: a outbox local registra uma mensagem aceita pelo SMTP do Mailtrap Sandbox em 13/11; em 16/11, o titular confirmou seu recebimento na caixa de entrada.
+- A versão local está concluída. A publicação online depende da escolha de servidor e domínio; o titular confirmou em 16/11 que ainda não possui nenhum dos dois.
 
 ## Implementação local da versão 1.1 — 13/11/2026
 
 - **Confirmação e recuperação de conta:** cadastro envia confirmação, login permite contas não confirmadas, mas a API bloqueia os dados do workspace até a confirmação. A Visão geral mostra o aviso, reenvio e verificação da confirmação; Preferências permanece acessível. Há redefinição de senha por link. O titular confirmou o recebimento e o funcionamento dos fluxos de confirmação e redefinição no ambiente local.
 - **Convites por e-mail:** convite para espaço, reenvio que renova o token, cancelamento, listagem de pendentes e aceitação autenticada. O token é armazenado como hash, expira em sete dias e só pode ser aceito por uma conta confirmada com o mesmo endereço.
 - **Notificações externas:** envio opcional por e-mail para atribuições, menções, novos participantes e lembretes de prazo. A preferência começa desativada e pode ser alterada em Preferências. O idioma escolhido no produto é salvo na conta para as notificações.
-- **Entrega de e-mail:** mensagens HTML e texto são persistidas em uma outbox com os corpos protegidos por Data Protection, processamento em segundo plano e novas tentativas. O titular confirmou a entrega no Mailtrap Sandbox para confirmação de conta, redefinição de senha e convites. Notificações externas ainda precisam ser conferidas no Sandbox; os testes não comprovam entrega a destinatários reais.
+- **Entrega de e-mail:** mensagens HTML e texto são persistidas em uma outbox com os corpos protegidos por Data Protection, processamento em segundo plano e novas tentativas. O titular confirmou a entrega no Mailtrap Sandbox para confirmação de conta, redefinição de senha, convites e uma notificação externa. O Sandbox não comprova entrega a destinatários reais.
 - **Banco:** migration `20261113180102_AddEmailWorkflows` aplicada ao `TaskFlowDb` local na porta 3307. A execução de conferência confirmou que o banco está atualizado e não há migrations pendentes. Backup anterior à aplicação: `C:\Users\zalla\Documents\TaskFlowBackups\TaskFlowDb-before-AddEmailWorkflows-20261113-153750.sql`.
 - **Validação desta rodada:** `dotnet test backend/TaskFlow.slnx --no-restore` aprovado (5 unitários e 6 de integração HTTP); `npm run build --prefix frontend` aprovado. Os testes HTTP usam EF Core InMemory; não provam o envio real por SMTP nem a aplicação da migration em MySQL.
 - O fluxo revisado de login e confirmação foi validado pelo titular no ambiente local. Testes HTTP afetados: 4 aprovados; build frontend aprovado. O rascunho antigo `temp.cs` foi removido.
 
-### Pendências para finalizar a 1.1
+### Validação da versão 1.1
 
-- [ ] Conferir o envio de notificações externas na caixa de entrada do Mailtrap Sandbox. Não enviar credenciais por chat ou armazená-las no repositório.
+- [x] Conferir o envio de notificações externas na caixa de entrada do Mailtrap Sandbox; o titular confirmou o recebimento em 16/11.
 - [x] Aplicar a migration e validar confirmação de conta e redefinição de senha no ambiente local com MySQL. Contas existentes poderão entrar, mas precisarão confirmar o e-mail para acessar dados do workspace.
 - [x] Fazer uma instalação limpa em diretório/ambiente novo e validar as instruções do README; o titular confirmou que concluiu e funcionou.
 - [x] Release `v1.1.0` publicada no GitHub com o estado de validação documentado: https://github.com/GuilhermeZalla/taskflow-platform/releases/tag/v1.1.0
 
 ## Etapa futura: hospedagem pública
 
-- [ ] Definir servidor/domínio, HTTPS, segredos, logs, backups e restauração.
-- [ ] Conferir a licença do MediatR para produção e preparar o runtime ASP.NET Core 10 no servidor.
+- [ ] Escolher servidor e domínio; em seguida configurar HTTPS, segredos, logs, backups e restauração. O titular ainda não possui servidor/domínio.
+- [ ] Antes de publicar, escolher a modalidade de licença aplicável ao MediatR 14.3.0 e instalar o runtime ASP.NET Core 10 no servidor. A documentação oficial apresenta opções RPL 1.5, Community para elegíveis e licença comercial: https://luckypennysoftware.com/faq
 
 ## Registro da versão 1.0
 
-- A versão `v1.0.0` foi publicada no GitHub para execução local; sua instalação limpa continua pendente de validação.
+- A versão `v1.0.0` foi publicada no GitHub para execução local; a instalação limpa foi posteriormente validada pelo titular.
 - O titular confirmou manualmente que os fluxos principais funcionaram no MySQL local, porta 3307. Os testes HTTP usam EF Core InMemory e não substituem essa verificação.
 - O runtime local ASP.NET Core 10.0.15 foi instalado lado a lado com o runtime 11; a API respondeu HTTP 200 sem `DOTNET_ROLL_FORWARD`.
 - MediatR 14.3.0 ainda requer conferência de licença antes de operação pública.
@@ -54,18 +54,6 @@
 - Nenhum pacote vulnerável reportado para a API.
 - A migration e os health checks foram verificados no MySQL local. O titular também confirmou o teste funcional dos fluxos com MySQL; os testes HTTP automatizados continuam usando EF Core InMemory.
 - E-mails e notificações externas são escopo da 1.1. Deploy online é um projeto posterior. A versão local 1.0.0 foi publicada no GitHub.
-
-## Pendências da versão 1.1
-
-- [ ] Validar a instalação limpa da tag `v1.0.0` em diretório ou ambiente novo, seguindo o README e usando configuração e banco descartáveis.
-- [ ] Implementar e validar e-mails de confirmação de conta e recuperação de senha.
-- [ ] Implementar e validar convites por e-mail.
-- [ ] Definir e implementar notificações externas; notificações internas já funcionam.
-
-## Etapa futura: hospedagem pública
-
-- [ ] Definir servidor/domínio, HTTPS, segredos, logs, backups e restauração.
-- [ ] Conferir a licença do MediatR para produção e preparar o runtime ASP.NET Core 10 no servidor.
 
 ## Pendências para a versão 1.0
 
