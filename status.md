@@ -1,5 +1,11 @@
 # TaskFlow — Status atual (16/11/2026)
 
+## Correções após a release 1.1.1 — 16/11/2026
+
+- A edição de tarefa na demonstração pública agora recebe listas corretas de comentários, etiquetas e dependências; as operações desses recursos ficam no armazenamento local da demo. A exclusão de tarefas remove os registros associados. A API real não foi alterada.
+- Os botões Editar e Excluir dos registros de tarefas compartilham o mesmo grupo de ações no componente usado pela demonstração e pela versão completa.
+- Validação: 29 testes do frontend aprovados; builds local e público aprovados. Prévia pública local verificada no Edge em 390, 768 e 1440 px: edição sem erro, botões alinhados, sem rolagem horizontal nem erros JavaScript.
+
 ## Release 1.1.1 — 16/11/2026
 
 - Release incremental após a 1.1.0: alinhamento responsivo dos filtros do Calendário e demonstração pública apenas do frontend, com dados fictícios no navegador. O pacote do frontend foi atualizado para 1.1.1.

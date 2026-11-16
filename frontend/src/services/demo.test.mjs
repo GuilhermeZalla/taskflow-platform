@@ -94,6 +94,55 @@ test("detail reads and edits retain the same record and produce a local activity
     demoAdapter({ url: "/api/activities", method: "post", data: { title: "fake" } }),
   );
 });
+test("task editor collaboration lists and changes use local demo collections", async () => {
+  localStorage.clear();
+  for (const url of [
+    "/api/workspaces/studio/labels",
+    "/api/tasks/t1/labels",
+    "/api/tasks/t1/dependencies",
+    "/api/tasks/t1/comments",
+  ]) {
+    assert.deepEqual((await demoAdapter({ url, method: "get" })).data, []);
+  }
+  const label = (await demoAdapter({
+    url: "/api/workspaces/studio/labels", method: "post",
+    data: { name: "Design", color: "#557A66" },
+  })).data;
+  await demoAdapter({ url: "/api/tasks/t1/labels", method: "put", data: { labelIds: [label.id] } });
+  assert.equal((await demoAdapter({ url: "/api/tasks/t1/labels", method: "get" })).data[0].name, "Design");
+
+  await demoAdapter({ url: "/api/tasks/t1/dependencies", method: "post", data: { dependsOnTaskId: "t2" } });
+  assert.equal((await demoAdapter({ url: "/api/tasks/t1/dependencies", method: "get" })).data[0].dependsOnTaskId, "t2");
+  await demoAdapter({ url: "/api/tasks/t1/dependencies/t2", method: "delete" });
+  assert.deepEqual((await demoAdapter({ url: "/api/tasks/t1/dependencies", method: "get" })).data, []);
+
+  await demoAdapter({ url: "/api/tasks/t1/comments", method: "post", data: { content: "Review this", mentionedUserIds: ["camila"] } });
+  assert.equal((await demoAdapter({ url: "/api/tasks/t1/comments", method: "get" })).data[0].content, "Review this");
+});
+
+test("demo collaboration rejects invalid references and dependency cycles", async () => {
+  localStorage.clear();
+  await assert.rejects(() => demoAdapter({ url: "/api/tasks/t1/labels", method: "put", data: { labelIds: ["missing"] } }));
+  await assert.rejects(() => demoAdapter({ url: "/api/tasks/t1/comments", method: "post", data: { content: "  " } }));
+  await assert.rejects(() => demoAdapter({ url: "/api/tasks/t1/unknown", method: "get" }));
+  await demoAdapter({ url: "/api/tasks/t1/dependencies", method: "post", data: { dependsOnTaskId: "t2" } });
+  await assert.rejects(() => demoAdapter({ url: "/api/tasks/t2/dependencies", method: "post", data: { dependsOnTaskId: "t1" } }));
+  assert.deepEqual((await demoAdapter({ url: "/api/tasks/t2/dependencies", method: "get" })).data, []);
+});
+
+test("deleting a demo task clears its collaboration records", async () => {
+  localStorage.clear();
+  const label = (await demoAdapter({ url: "/api/workspaces/studio/labels", method: "post", data: { name: "Design", color: "#557A66" } })).data;
+  await demoAdapter({ url: "/api/tasks/t1/labels", method: "put", data: { labelIds: [label.id] } });
+  await demoAdapter({ url: "/api/tasks/t2/dependencies", method: "post", data: { dependsOnTaskId: "t1" } });
+  await demoAdapter({ url: "/api/tasks/t1/comments", method: "post", data: { content: "Review this" } });
+  await demoAdapter({ url: "/api/tasks/t1", method: "delete" });
+  assert.deepEqual((await demoAdapter({ url: "/api/tasks/t2/dependencies", method: "get" })).data, []);
+  const stored = JSON.parse(localStorage.getItem("taskflow.demo.v1"));
+  assert.deepEqual(stored.taskLabels, []);
+  assert.deepEqual(stored.comments, []);
+});
+
 test("demo members reject duplicate email and removal clears task assignment", async () => {
   localStorage.clear();
   await demoAdapter({ url: "/api/tasks/t1", method: "put", data: { assignedToId: "camila" } });

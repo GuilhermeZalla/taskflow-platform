@@ -170,6 +170,112 @@ function localizeSample(value: any): any {
     ]),
   );
 }
+function demoNestedResource(
+  db: Record<string, Array<Record<string, any>>>,
+  path: string[],
+  method: string,
+  body: any,
+): { data: any; status: number } | null {
+  const [kind, id, resource, relatedId] = path;
+  if (!kind || !id || !resource) return null;
+  const record = db[kind]?.find((item) => item["id"] === id);
+  if (!record) throw new Error("Registro não encontrado.");
+  const workspaceId = kind === "workspaces"
+    ? id
+    : db["projects"]?.find((project) => project["id"] === record["projectId"])?.["workspaceId"];
+  if (!workspaceId) throw new Error("Espaço de trabalho não encontrado.");
+
+  if (kind === "workspaces" && resource === "labels" && !relatedId) {
+    db["labels"] ??= [];
+    if (method === "get") {
+      return { data: db["labels"].filter((label) => label["workspaceId"] === workspaceId), status: 200 };
+    }
+    if (method === "post") {
+      const name = body?.name?.trim();
+      if (!name || name.length > 50 || !/^#[0-9a-f]{6}$/i.test(body?.color || ""))
+        throw new Error("Informe uma etiqueta e uma cor válidas.");
+      if (db["labels"]!.some((label) => label["workspaceId"] === workspaceId && label["name"] === name))
+        throw new Error("Já existe uma etiqueta com esse nome neste espaço.");
+      const label = { id: crypto.randomUUID(), workspaceId, name, color: body.color.toUpperCase() };
+      db["labels"].push(label);
+      return { data: label, status: 201 };
+    }
+  }
+
+  if (kind === "tasks" && resource === "labels" && !relatedId) {
+    db["labels"] ??= [];
+    db["taskLabels"] ??= [];
+    if (method === "get") {
+      const ids = db["taskLabels"].filter((link) => link["taskId"] === id).map((link) => link["labelId"]);
+      return { data: db["labels"].filter((label) => ids.includes(label["id"])), status: 200 };
+    }
+    if (method === "put") {
+      const ids = [...new Set(body?.labelIds || [])];
+      if (ids.some((labelId) => !db["labels"]!.some((label) => label["id"] === labelId && label["workspaceId"] === workspaceId)))
+        throw new Error("Todas as etiquetas precisam pertencer ao mesmo espaço da tarefa.");
+      db["taskLabels"] = db["taskLabels"].filter((link) => link["taskId"] !== id);
+      db["taskLabels"].push(...ids.map((labelId) => ({ taskId: id, labelId })));
+      return { data: null, status: 204 };
+    }
+  }
+
+  if (kind === "tasks" && resource === "dependencies") {
+    db["taskDependencies"] ??= [];
+    if (method === "get" && !relatedId) {
+      return { data: db["taskDependencies"].filter((link) => link["taskId"] === id).map((link) => {
+        const prerequisite = db["tasks"]!.find((task) => task["id"] === link["dependsOnTaskId"]);
+        return { dependsOnTaskId: link["dependsOnTaskId"], title: prerequisite?.["title"], status: prerequisite?.["status"] };
+      }), status: 200 };
+    }
+    if (method === "post" && !relatedId) {
+      const prerequisite = db["tasks"]!.find((task) => task["id"] === body?.dependsOnTaskId);
+      const prerequisiteWorkspace = db["projects"]!.find((project) => project["id"] === prerequisite?.["projectId"])?.["workspaceId"];
+      if (!prerequisite || prerequisiteWorkspace !== workspaceId || prerequisite["id"] === id)
+        throw new Error("As tarefas precisam pertencer ao mesmo espaço e ser diferentes.");
+      if (db["taskDependencies"].some((link) => link["taskId"] === id && link["dependsOnTaskId"] === prerequisite["id"]))
+        throw new Error("Essa dependência já existe.");
+      const pending = [prerequisite["id"]];
+      const visited = new Set<string>();
+      while (pending.length) {
+        const current = pending.shift()!;
+        if (current === id) throw new Error("Essa dependência criaria um ciclo.");
+        if (!visited.has(current)) {
+          visited.add(current);
+          pending.push(...db["taskDependencies"].filter((link) => link["taskId"] === current).map((link) => link["dependsOnTaskId"]));
+        }
+      }
+      db["taskDependencies"].push({ taskId: id, dependsOnTaskId: prerequisite["id"] });
+      return { data: { taskId: id, dependsOnTaskId: prerequisite["id"] }, status: 201 };
+    }
+    if (method === "delete" && relatedId) {
+      if (!db["taskDependencies"].some((link) => link["taskId"] === id && link["dependsOnTaskId"] === relatedId))
+        throw new Error("Dependência não encontrada.");
+      db["taskDependencies"] = db["taskDependencies"].filter((link) => link["taskId"] !== id || link["dependsOnTaskId"] !== relatedId);
+      return { data: null, status: 204 };
+    }
+  }
+
+  if (kind === "tasks" && resource === "comments" && !relatedId) {
+    db["comments"] ??= [];
+    if (method === "get") return { data: db["comments"].filter((comment) => comment["taskId"] === id), status: 200 };
+    if (method === "post") {
+      const content = body?.content?.trim();
+      if (!content || content.length > 2000) throw new Error("O comentário deve ter entre 1 e 2.000 caracteres.");
+      const mentionedIds = [...new Set(body?.mentionedUserIds || [])];
+      if (mentionedIds.some((userId) => !db["members"]?.some((member) => member["id"] === userId && member["workspaceId"] === workspaceId)))
+        throw new Error("Só é possível mencionar pessoas deste espaço.");
+      const comment = {
+        id: crypto.randomUUID(), taskId: id, content,
+        authorName: getLanguage() === "en" ? "Demo user" : "Usuário de demonstração",
+        createdAt: new Date().toISOString(),
+      };
+      db["comments"].push(comment);
+      return { data: comment, status: 201 };
+    }
+  }
+  throw new Error("Recurso indisponível na demonstração.");
+}
+
 export async function demoAdapter(config: any) {
   const db = JSON.parse(localStorage.getItem(key) || JSON.stringify(initial)) as Record<
     string,
@@ -177,12 +283,18 @@ export async function demoAdapter(config: any) {
   >;
   db["members"] ??= seedMembers.map((m) => ({ ...m }));
   db["activities"] ??= [];
-  const [kind, id] = (config.url || "").replace("/api/", "").split("/");
+  const path = (config.url || "").replace("/api/", "").split("/");
+  const [kind, id] = path;
   if (!["workspaces", "projects", "tasks", "members", "activities", "notifications"].includes(kind))
     throw new Error("Recurso indisponível na demonstração.");
   db["notifications"] ??= [];
   const method = (config.method || "get").toLowerCase();
   const body = typeof config.data === "string" ? JSON.parse(config.data) : config.data;
+  const nested = demoNestedResource(db, path, method, body);
+  if (nested) {
+    localStorage.setItem(key, JSON.stringify(db));
+    return { ...nested, data: method === "get" ? localizeSample(nested.data) : nested.data, statusText: "OK", headers: {}, config };
+  }
   if (kind === "activities" && method !== "get") throw new Error("O histórico é somente leitura.");
   if (kind === "notifications" && id === "read-all" && method === "put") {
     for (const notification of db[kind]!) notification["isRead"] = true;
@@ -218,6 +330,14 @@ export async function demoAdapter(config: any) {
   }
   if (method === "delete") {
     if (!id) throw new Error("Informe o registro a excluir.");
+    const removedProjectIds = kind === "projects"
+      ? [id]
+      : kind === "workspaces"
+        ? db["projects"]!.filter((project) => project["workspaceId"] === id).map((project) => project["id"])
+        : [];
+    const removedTaskIds = kind === "tasks"
+      ? [id]
+      : db["tasks"]!.filter((task) => removedProjectIds.includes(task["projectId"])).map((task) => task["id"]);
     db[kind] = db[kind]!.filter((x) => x["id"] !== id);
     const projectIds =
       kind === "workspaces"
@@ -231,6 +351,14 @@ export async function demoAdapter(config: any) {
     }
     if (kind === "workspaces")
       db["members"] = db["members"]!.filter((x) => x["workspaceId"] !== id);
+    if (removedTaskIds.length) {
+      db["taskLabels"] = (db["taskLabels"] || []).filter((link) => !removedTaskIds.includes(link["taskId"]));
+      db["taskDependencies"] = (db["taskDependencies"] || []).filter((link) =>
+        !removedTaskIds.includes(link["taskId"]) && !removedTaskIds.includes(link["dependsOnTaskId"]));
+      db["comments"] = (db["comments"] || []).filter((comment) => !removedTaskIds.includes(comment["taskId"]));
+    }
+    if (kind === "workspaces")
+      db["labels"] = (db["labels"] || []).filter((label) => label["workspaceId"] !== id);
     if (kind === "members")
       for (const t of db["tasks"]!)
         if (t["assignedToId"] === id) {

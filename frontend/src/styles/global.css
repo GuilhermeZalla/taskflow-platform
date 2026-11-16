@@ -631,7 +631,8 @@ textarea::placeholder {
 .board-column .task-check { grid-column: 1; grid-row: 1; margin-top: 1px; }
 .board-column .task-record > .badge { grid-column: 3; grid-row: 1; margin: 0; }
 .board-column .board-card-hidden-control { display: none; }
-.board-column .board-card-open { grid-column: 2 / 4; justify-self: end; font-size: 10px; }
+.board-column .task-row-actions { grid-column: 2 / 4; justify-self: end; }
+.board-column .board-card-open { font-size: 10px; }
 .board-column .task-copy {
   flex-basis: 75%;
 }
@@ -2929,6 +2930,22 @@ button.button {
 }
 .board-column .task-record .task-copy {
   min-width: 0;
+}
+.task-row-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.task-row-actions .quiet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+.task-row-actions .delete {
+  margin-left: 0;
 }
 
 .form-actions {

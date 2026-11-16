@@ -116,21 +116,23 @@ export function Tasks() {
             ))}
           </select>
         </label>
-        <Link
-          className={"quiet" + (asBoardCard ? " board-card-open" : "")}
-          to={"/tasks/" + t.id + "/edit"}
-          aria-label={translate("Editar ") + t.title}
-        >
-          {translate("Editar")}{" "}
-        </Link>
-        <button
-          className={"quiet delete" + (asBoardCard ? " board-card-hidden-control" : "")}
-          disabled={!!busy}
-          onClick={() => void change(t, t.status, true)}
-          aria-label={translate("Excluir ") + t.title}
-        >
-          {translate("Excluir")}{" "}
-        </button>
+        <div className="task-row-actions">
+          <Link
+            className={"quiet" + (asBoardCard ? " board-card-open" : "")}
+            to={"/tasks/" + t.id + "/edit"}
+            aria-label={translate("Editar ") + t.title}
+          >
+            {translate("Editar")}{" "}
+          </Link>
+          <button
+            className={"quiet delete" + (asBoardCard ? " board-card-hidden-control" : "")}
+            disabled={!!busy}
+            onClick={() => void change(t, t.status, true)}
+            aria-label={translate("Excluir ") + t.title}
+          >
+            {translate("Excluir")}{" "}
+          </button>
+        </div>
       </article>
     );
   }
