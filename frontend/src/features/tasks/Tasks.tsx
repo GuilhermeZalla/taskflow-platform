@@ -94,44 +94,46 @@ export function Tasks() {
             {t.assignedToName && <span>{t.assignedToName}</span>}
           </div>
         </div>
-        <span className={"badge " + t.priority.toLowerCase()}>{statusLabel(t.priority)}</span>
-        <label className={"task-status-control" + (asBoardCard ? " board-card-hidden-control" : "")}>
-          <span className="sr-only">
-            {translate("Status de")} {t.title}
-          </span>
-          <select
-            disabled={!!busy}
-            value={taskStatus(t.status)}
-            onChange={(e) => void change(t, canonicalStatus(e.target.value))}
-          >
-            {[
-              ["todo", translate("A fazer")],
-              ["inprogress", translate("Em andamento")],
-              ["review", translate("Em revisão")],
-              ["done", translate("Concluída")],
-            ].map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="task-row-actions">
-          <Link
-            className={"quiet" + (asBoardCard ? " board-card-open" : "")}
-            to={"/tasks/" + t.id + "/edit"}
-            aria-label={translate("Editar ") + t.title}
-          >
-            {translate("Editar")}{" "}
-          </Link>
-          <button
-            className={"quiet delete" + (asBoardCard ? " board-card-hidden-control" : "")}
-            disabled={!!busy}
-            onClick={() => void change(t, t.status, true)}
-            aria-label={translate("Excluir ") + t.title}
-          >
-            {translate("Excluir")}{" "}
-          </button>
+        <div className="task-row-controls">
+          <span className={"badge " + t.priority.toLowerCase()}>{statusLabel(t.priority)}</span>
+          <label className={"task-status-control" + (asBoardCard ? " board-card-hidden-control" : "")}>
+            <span className="sr-only">
+              {translate("Status de")} {t.title}
+            </span>
+            <select
+              disabled={!!busy}
+              value={taskStatus(t.status)}
+              onChange={(e) => void change(t, canonicalStatus(e.target.value))}
+            >
+              {[
+                ["todo", translate("A fazer")],
+                ["inprogress", translate("Em andamento")],
+                ["review", translate("Em revisão")],
+                ["done", translate("Concluída")],
+              ].map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="task-row-actions">
+            <Link
+              className={"quiet" + (asBoardCard ? " board-card-open" : "")}
+              to={"/tasks/" + t.id + "/edit"}
+              aria-label={translate("Editar ") + t.title}
+            >
+              {translate("Editar")}{" "}
+            </Link>
+            <button
+              className={"quiet delete" + (asBoardCard ? " board-card-hidden-control" : "")}
+              disabled={!!busy}
+              onClick={() => void change(t, t.status, true)}
+              aria-label={translate("Excluir ") + t.title}
+            >
+              {translate("Excluir")}{" "}
+            </button>
+          </div>
         </div>
       </article>
     );

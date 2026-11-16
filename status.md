@@ -2,6 +2,9 @@
 
 ## Correções após a release 1.1.1 — 16/11/2026
 
+- Lista de tarefas: conteúdo à esquerda e grupo de prioridade, status e ações na extremidade direita; Editar e Excluir seguem alinhados. O quadro preserva a prioridade e a ação de edição, sem mostrar Excluir.
+- Edição de tarefas: Etiquetas, Dependências e Comentários foram alinhados à largura do formulário, com divisores, espaços entre campos e botões e seleção múltipla limitada. Os estilos são compartilhados pela demo e pela versão local completa.
+- Validação visual da prévia pública local no Edge em 390, 768 e 1440 px: controles a 15–21 px da borda direita do painel, sem overflow ou erros JavaScript; o quadro manteve seus controles. 29 testes do frontend e build público aprovados.
 - A edição de tarefa na demonstração pública agora recebe listas corretas de comentários, etiquetas e dependências; as operações desses recursos ficam no armazenamento local da demo. A exclusão de tarefas remove os registros associados. A API real não foi alterada.
 - Os botões Editar e Excluir dos registros de tarefas compartilham o mesmo grupo de ações no componente usado pela demonstração e pela versão completa.
 - Validação: 29 testes do frontend aprovados; builds local e público aprovados. Prévia pública local verificada no Edge em 390, 768 e 1440 px: edição sem erro, botões alinhados, sem rolagem horizontal nem erros JavaScript.
