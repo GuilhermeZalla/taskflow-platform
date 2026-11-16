@@ -1,5 +1,11 @@
 # TaskFlow — Status atual (16/11/2026)
 
+## Release 1.1.2 — 16/11/2026
+
+- Release de correção da demo pública e dos layouts compartilhados de tarefas. O pacote do frontend foi atualizado para 1.1.2; a API e o banco não foram alterados.
+- Validação: 29 testes do frontend e builds local e público aprovados. A edição e o alinhamento foram conferidos na demo pública, sem erros JavaScript.
+- A hospedagem do sistema completo continua pendente, conforme a seção de etapa futura.
+
 ## Correções após a release 1.1.1 — 16/11/2026
 
 - Lista de tarefas: conteúdo à esquerda e grupo de prioridade, status e ações na extremidade direita; Editar e Excluir seguem alinhados. O quadro preserva a prioridade e a ação de edição, sem mostrar Excluir.
