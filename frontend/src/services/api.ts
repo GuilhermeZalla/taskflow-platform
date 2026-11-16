@@ -1,8 +1,8 @@
 import { getLanguage } from "@/i18n/core";
-import { isDemo, demoAdapter } from "./demo";
+import { isDemo, isPublicDemo, demoAdapter } from "./demo";
 import axios from "axios";
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || "http://127.0.0.1:5080";
+const API_BASE_URL = isPublicDemo ? "" : (import.meta as any).env?.VITE_API_URL || "http://127.0.0.1:5080";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -12,11 +12,14 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config: any) => {
+  if (isPublicDemo && !config.url?.startsWith("/api/")) {
+    return Promise.reject(new Error("Authentication is unavailable in the public demo."));
+  }
   if (isDemo() && config.url?.startsWith("/api/")) config.adapter = demoAdapter;
   config.headers = config.headers ?? {};
   config.headers["Accept-Language"] = getLanguage();
   const token = localStorage.getItem("accessToken");
-  if (token) {
+  if (token && !isDemo()) {
     config.headers = config.headers ?? {};
     config.headers["Authorization"] = `Bearer ${token}`;
   }
@@ -27,6 +30,7 @@ api.interceptors.response.use(
   (response: any) => response,
   (error: any) => {
     if (
+      !isPublicDemo &&
       error?.response?.status === 401 &&
       localStorage.getItem("accessToken") &&
       !["/login", "/register"].includes(window.location.pathname)

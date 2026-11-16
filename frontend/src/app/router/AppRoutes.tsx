@@ -1,6 +1,7 @@
 import { t as translate } from "@/i18n/core";
 import { useLanguage } from "@/i18n/react";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, createHashRouter, Link, RouterProvider } from "react-router-dom";
+import { isPublicDemo } from "@/services/demo";
 import { Home } from "src/features/dashboard/Home";
 import { Login } from "src/features/auth/Login";
 import { Register } from "src/features/auth/Register";
@@ -30,18 +31,20 @@ function NotFound() {
   return (
     <div className="feedback">
       <h1>{translate("Página não encontrada")}</h1>
-      <a href="/">{translate("Voltar ao início")}</a>
+      <Link to="/">{translate("Voltar ao início")}</Link>
     </div>
   );
 }
-const router = createBrowserRouter([
-  { path: "/login", element: <Login /> },
-  { path: "/register", element: <Register /> },
-  { path: "/confirm-email", element: <ConfirmEmail /> },
-  { path: "/forgot-password", element: <ForgotPassword /> },
-  { path: "/resend-confirmation", element: <ResendConfirmation /> },
-  { path: "/reset-password", element: <ResetPassword /> },
-  { path: "/accept-invitation", element: <AcceptInvitation /> },
+const routes = [
+  ...(!isPublicDemo ? [
+    { path: "/login", element: <Login /> },
+    { path: "/register", element: <Register /> },
+    { path: "/confirm-email", element: <ConfirmEmail /> },
+    { path: "/forgot-password", element: <ForgotPassword /> },
+    { path: "/resend-confirmation", element: <ResendConfirmation /> },
+    { path: "/reset-password", element: <ResetPassword /> },
+    { path: "/accept-invitation", element: <AcceptInvitation /> },
+  ] : []),
   {
     path: "/",
     element: <Layout />,
@@ -68,7 +71,8 @@ const router = createBrowserRouter([
       },
     ],
   },
-]);
+];
+const router = isPublicDemo ? createHashRouter(routes) : createBrowserRouter(routes);
 
 export { router };
 export default function AppRoutes() {

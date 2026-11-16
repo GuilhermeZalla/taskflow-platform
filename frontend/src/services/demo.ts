@@ -1,7 +1,8 @@
 import { getLanguage } from "../i18n/core.ts";
 
 const key = "taskflow.demo.v1";
-export const isDemo = () => sessionStorage.getItem("taskflow.preview") === "true";
+export const isPublicDemo = import.meta.env?.VITE_PUBLIC_DEMO === "true";
+export const isDemo = () => isPublicDemo || sessionStorage.getItem("taskflow.preview") === "true";
 export function startDemo() {
   sessionStorage.setItem("taskflow.preview", "true");
 }

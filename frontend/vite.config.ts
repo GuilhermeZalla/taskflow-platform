@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
 
 export default defineConfig({
+  base: process.env.VITE_PUBLIC_DEMO === 'true' ? '/taskflow-platform/' : '/',
   plugins: [react(), envCompatible(), tailwindcss()],
   resolve: {
     alias: {

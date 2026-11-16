@@ -4,7 +4,7 @@ import { useLanguage } from "@/i18n/react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { isDemo } from "@/services/demo";
+import { isDemo, isPublicDemo } from "@/services/demo";
 import { NotificationCenter } from "@/components/ui/NotificationCenter";
 const labels: Record<string, string> = {
   tasks: "Tarefas",
@@ -66,7 +66,7 @@ export function Header({ restricted = false }: { restricted?: boolean }) {
         >
           {isDemo() ? "D" : "C"}
         </Link>
-        <button
+        {!isPublicDemo && <button
           className="quiet"
           onClick={() => {
             sessionStorage.removeItem("taskflow.preview");
@@ -76,7 +76,7 @@ export function Header({ restricted = false }: { restricted?: boolean }) {
           }}
         >
           {translate("Sair")}{" "}
-        </button>
+        </button>}
       </div>
     </header>
   );
