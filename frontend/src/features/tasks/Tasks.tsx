@@ -36,7 +36,14 @@ export function Tasks() {
   const [drag, setDrag] = useState<{ id: string; x: number; y: number; dx: number; dy: number; target: string } | null>(null);
   const dragRef = useRef<typeof drag>(null);
   function openPanel(value: { id?: string; status?: string }) { opener.current = document.activeElement as HTMLElement; setPanel(value); }
-  function closePanel() { setPanel(null); opener.current?.focus(); }
+  function closePanel() {
+    panelRef.current?.close();
+    setPanel(null);
+    requestAnimationFrame(() => {
+      if (opener.current?.isConnected) opener.current.focus();
+      else document.querySelector<HTMLButtonElement>('.view-toggle button[aria-pressed="true"]')?.focus();
+    });
+  }
   useEffect(() => { if (panel && !panelRef.current?.open) panelRef.current?.showModal(); }, [panel]);
   const update = (key: string, value: string) => {
     if (key === "view") { setRememberedView(value); try { localStorage.setItem("taskflow.tasks.view", value); } catch { /* Session preference still works without storage. */ } }
