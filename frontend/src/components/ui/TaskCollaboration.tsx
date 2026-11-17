@@ -1,6 +1,7 @@
-import { t as translate } from "@/i18n/core";
+import type { Subtask } from "@/types";
+import { t as translate, localizeError } from "@/i18n/core";
 import { useLanguage } from "@/i18n/react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, handleApiError } from "@/services/api";
 import { useWorkData } from "@/features/work/useWorkData";
@@ -15,6 +16,9 @@ export function TaskCollaboration({ taskId, projectId }: { taskId: string; proje
   const cache = useQueryClient();
   const work = useWorkData();
   const [content, setContent] = useState("");
+  const [subtaskTitle, setSubtaskTitle] = useState("");
+  const [busy, setBusy] = useState(false);
+  const acting = useRef(false);
   const [mentioned, setMentioned] = useState<string[]>([]);
   const [labelName, setLabelName] = useState("");
   const [dependencyId, setDependencyId] = useState("");
@@ -22,19 +26,36 @@ export function TaskCollaboration({ taskId, projectId }: { taskId: string; proje
   const project = work.data?.projects.find((item) => item.id === projectId);
   const workspaceId = project?.workspaceId;
   const members = useQuery({ queryKey: ["workspace-members", workspaceId], enabled: !!workspaceId, queryFn: async () => (await api.get<Member[]>("/api/members", { params: { workspaceId } })).data });
+  const subtasks = useQuery({ queryKey: ["task-subtasks", taskId], queryFn: async () => (await api.get<Subtask[]>(`/api/tasks/${taskId}/subtasks`)).data });
   const comments = useQuery({ queryKey: ["task-comments", taskId], queryFn: async () => (await api.get<Comment[]>(`/api/tasks/${taskId}/comments`)).data });
   const labels = useQuery({ queryKey: ["workspace-labels", workspaceId], enabled: !!workspaceId, queryFn: async () => (await api.get<Label[]>(`/api/workspaces/${workspaceId}/labels`)).data });
   const assignedLabels = useQuery({ queryKey: ["task-labels", taskId], queryFn: async () => (await api.get<Label[]>(`/api/tasks/${taskId}/labels`)).data });
   const dependencies = useQuery({ queryKey: ["task-dependencies", taskId], queryFn: async () => (await api.get<Dependency[]>(`/api/tasks/${taskId}/dependencies`)).data });
   const reload = async () => { await cache.invalidateQueries(); };
   async function act(action: () => unknown) {
-    setError("");
+    if (acting.current) return;
+    acting.current = true; setBusy(true); setError("");
     try { await action(); await reload(); }
-    catch (e) { setError(handleApiError(e).message); }
+    catch (e) { setError(localizeError(handleApiError(e).message)); }
+    finally { acting.current = false; setBusy(false); }
   }
   const taskOptions = work.data?.tasks.filter((item) => item.id !== taskId && work.data?.projects.find((p) => p.id === item.projectId)?.workspaceId === workspaceId) || [];
   return <div className="task-collaboration">
     {error && <p className="error" role="alert">{error}</p>}
+    <fieldset className="collaboration-controls" disabled={busy}>
+    <section className="task-checklist"><h2>{translate("Checklist")}</h2>
+      {subtasks.isError ? <p role="alert">{translate("Não foi possível carregar o checklist.")} <button className="quiet" onClick={() => void subtasks.refetch()}>{translate("Tentar novamente")}</button></p> : subtasks.isLoading ? <p role="status">{translate("Carregando…")}</p> : <>
+        {!!subtasks.data?.length && <p className="checklist-summary" role="status">{translate("{done} de {total} concluídas", { done: subtasks.data.filter(item => item.isCompleted).length, total: subtasks.data.length })}</p>}
+        <ul className="checklist-items">{subtasks.data?.map(item => <li key={item.id}>
+          <label><input type="checkbox" disabled={busy} checked={item.isCompleted} onChange={event => void act(() => api.put(`/api/tasks/${taskId}/subtasks/${item.id}`, { title: item.title, isCompleted: event.target.checked }))}/><span className={item.isCompleted ? "completed" : ""}>{item.title}</span></label>
+          <button className="quiet delete" disabled={busy} aria-label={translate("Remover subtarefa") + ": " + item.title} onClick={() => void act(() => api.delete(`/api/tasks/${taskId}/subtasks/${item.id}`))}>{translate("Remover")}</button>
+        </li>)}</ul>
+      </>}
+      <form className="inline-form" onSubmit={event => { event.preventDefault(); void act(async () => { await api.post(`/api/tasks/${taskId}/subtasks`, { title: subtaskTitle, isCompleted: false }); setSubtaskTitle(""); }); }}>
+        <input aria-label={translate("Nova subtarefa")} placeholder={translate("Nova subtarefa")} maxLength={200} value={subtaskTitle} onChange={event => setSubtaskTitle(event.target.value)}/>
+        <button className="button secondary" disabled={busy || !subtaskTitle.trim()}>{translate("Adicionar")}</button>
+      </form>
+    </section>
     <section><h2>{translate("Etiquetas")}</h2>
       <form className="inline-form" onSubmit={(e) => { e.preventDefault(); void act(async () => { const created = await api.post<Label>(`/api/workspaces/${workspaceId}/labels`, { name: labelName, color: "#557A66" }); await api.put(`/api/tasks/${taskId}/labels`, { labelIds: [...(assignedLabels.data || []).map((x) => x.id), created.data.id] }); setLabelName(""); }); }}>
         <input aria-label={translate("Nova etiqueta")} value={labelName} onChange={(e) => setLabelName(e.target.value)} placeholder={translate("Nova etiqueta")} maxLength={50} />
@@ -57,5 +78,6 @@ export function TaskCollaboration({ taskId, projectId }: { taskId: string; proje
       </form>
       {comments.data?.map((comment) => <article className="task-comment" key={comment.id}><strong>{comment.authorName}</strong><time>{new Date(comment.createdAt).toLocaleString()}</time><p>{comment.content}</p></article>)}
     </section>
+    </fieldset>
   </div>;
 }

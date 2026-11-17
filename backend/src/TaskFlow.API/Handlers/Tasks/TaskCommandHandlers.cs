@@ -139,7 +139,11 @@ public class UpdateTaskCommandHandler : IRequestHandler<UpdateTaskCommand, TaskD
             CreatedAt = task.CreatedAt,
             UpdatedAt = task.UpdatedAt,
             SubtaskCount = await _context.Subtasks.CountAsync(s => s.TaskId == task.Id, cancellationToken),
-            CommentCount = await _context.Comments.CountAsync(c => c.TaskId == task.Id, cancellationToken)
+            CommentCount = await _context.Comments.CountAsync(c => c.TaskId == task.Id, cancellationToken),
+            CompletedSubtaskCount = await _context.Subtasks.CountAsync(s => s.TaskId == task.Id && s.IsCompleted, cancellationToken),
+            Labels = await _context.TaskLabels.Where(link => link.TaskId == task.Id)
+                .OrderBy(link => link.Label.Name)
+                .Select(link => new TaskLabelDto(link.Label.Id, link.Label.Name, link.Label.Color)).ToListAsync(cancellationToken)
         };
     }
 }

@@ -76,6 +76,8 @@ public class TaskDto
     public DateTime? UpdatedAt { get; set; }
     public int SubtaskCount { get; set; }
     public int CommentCount { get; set; }
+    public int CompletedSubtaskCount { get; set; }
+    public List<TaskLabelDto> Labels { get; set; } = [];
 }
 
 /// <summary>
@@ -91,3 +93,5 @@ public class CreateTaskDto
     public Guid? AssignedToId { get; set; }
     public DateTime? DueDate { get; set; }
 }
+
+public sealed record TaskLabelDto(Guid Id, string Name, string Color);

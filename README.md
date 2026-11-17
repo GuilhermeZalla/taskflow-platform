@@ -188,6 +188,7 @@ Product resources use the `/api` prefix; Identity login is at the root. Resource
 | Notifications | `GET /api/notifications`, `GET /api/notifications/unread-count`, `PUT /api/notifications/{id}/read`, `PUT /api/notifications/read-all` |
 | Labels | `/api/workspaces/{workspaceId}/labels` and `/api/tasks/{taskId}/labels` |
 | Dependencies | `/api/tasks/{taskId}/dependencies` |
+| Checklist | `GET/POST /api/tasks/{taskId}/subtasks`, `PUT/DELETE /api/tasks/{taskId}/subtasks/{id}` |
 | Templates | `/api/workspaces/{workspaceId}/templates` and `POST /api/templates/{templateId}/apply` |
 
 The OpenAPI specification and controllers are the source of truth for methods, filters, fields, and detailed responses. Current reports are assembled in the frontend from records returned by the API; CSV export is generated on the client.
@@ -240,3 +241,7 @@ The product idea and business rules are the developer's own. Technical decisions
 Tasks open in Board view by default and remember your last List/Board choice on this browser. Move a card using its handle (mouse or touch), use left/right arrow keys on that handle, or choose a status from its selector. Drops outside a column and short clicks do not change a task. Updates show immediately; a failed save restores the previous state with an error message.
 
 Click a card title to edit in a modal side panel without leaving the current filters. The panel reuses the task editor and its comments, labels and dependencies. Use Escape, Close or Cancel to return to the board. Each column offers Add task with its status preselected, including empty columns. The same components and API contracts are used in the public demo and the full application; demo changes remain fictional.
+
+Cards display real comment counts, assigned labels and completed/total checklist progress when these data exist. Task list/detail responses include these summaries, so the board does not request collaboration data separately for each card. Add, complete or remove checklist items from the task panel; these changes immediately refresh the card summary. Checklist changes do not automatically complete the parent task. The API enforces project access, rejects observer writes and validates item titles (1–200 characters). It uses the existing `Subtasks` table; no migration is required.
+
+Reorder cards within a column by dragging the handle, or use Up/Down on that handle. Left/Right continues to change workflow stages. Dragging automatically selects Manual order; choose Priority, Deadline or Name to return to automatic sorting. The order is a browser preference, stored separately for demo and real accounts; it is not shared with teammates or synchronized between devices. Filters retain the saved order without removing hidden tasks. If browser storage is unavailable, the order remains usable for the current session with a notice. Team chat remains a future enhancement.

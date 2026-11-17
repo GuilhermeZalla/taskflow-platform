@@ -255,6 +255,26 @@ function demoNestedResource(
     }
   }
 
+  if (kind === "tasks" && resource === "subtasks") {
+    db["subtasks"] ??= [];
+    if (method === "get" && !relatedId)
+      return { data: db["subtasks"].filter(item => item["taskId"] === id), status: 200 };
+    const item = db["subtasks"].find(item => item["taskId"] === id && item["id"] === relatedId);
+    if (relatedId && !item) throw new Error("Subtarefa não encontrada.");
+    if ((method === "post" && !relatedId) || (method === "put" && relatedId)) {
+      const title = body?.title?.trim();
+      if (!title || title.length > 200 || typeof body?.isCompleted !== "boolean")
+        throw new Error("A subtarefa deve ter entre 1 e 200 caracteres.");
+      if (item) { item["title"] = title; item["isCompleted"] = body.isCompleted; }
+      else db["subtasks"].push({ id: crypto.randomUUID(), taskId: id, title, isCompleted: body.isCompleted, createdAt: new Date().toISOString() });
+      return { data: item || db["subtasks"].at(-1), status: item ? 204 : 201 };
+    }
+    if (method === "delete" && item) {
+      db["subtasks"] = db["subtasks"].filter(subtask => subtask !== item);
+      return { data: null, status: 204 };
+    }
+  }
+
   if (kind === "tasks" && resource === "comments" && !relatedId) {
     db["comments"] ??= [];
     if (method === "get") return { data: db["comments"].filter((comment) => comment["taskId"] === id), status: 200 };
@@ -356,6 +376,7 @@ export async function demoAdapter(config: any) {
       db["taskDependencies"] = (db["taskDependencies"] || []).filter((link) =>
         !removedTaskIds.includes(link["taskId"]) && !removedTaskIds.includes(link["dependsOnTaskId"]));
       db["comments"] = (db["comments"] || []).filter((comment) => !removedTaskIds.includes(comment["taskId"]));
+      db["subtasks"] = (db["subtasks"] || []).filter((item) => !removedTaskIds.includes(item["taskId"]));
     }
     if (kind === "workspaces")
       db["labels"] = (db["labels"] || []).filter((label) => label["workspaceId"] !== id);
@@ -384,6 +405,29 @@ export async function demoAdapter(config: any) {
       Object.entries(config.params).every(([k, v]) => !v || x[k] === v),
     );
   localStorage.setItem(key, JSON.stringify(db));
+  if (kind === "tasks" && method === "get") {
+    const comments = new Map<string, number>();
+    const subtasks = new Map<string, { total: number; complete: number }>();
+    const labels = new Map((db["labels"] || []).map(label => [label["id"], label]));
+    const assignedLabels = new Map<string, Array<Record<string, any>>>();
+    for (const comment of db["comments"] || []) comments.set(comment["taskId"], (comments.get(comment["taskId"]) || 0) + 1);
+    for (const item of db["subtasks"] || []) {
+      const counts = subtasks.get(item["taskId"]) || { total: 0, complete: 0 };
+      counts.total++; if (item["isCompleted"]) counts.complete++;
+      subtasks.set(item["taskId"], counts);
+    }
+    for (const link of db["taskLabels"] || []) {
+      const label = labels.get(link["labelId"]);
+      if (label) assignedLabels.set(link["taskId"], [...(assignedLabels.get(link["taskId"]) || []), label]);
+    }
+    const summary = (task: Record<string, any>) => ({ ...task,
+      commentCount: comments.get(task["id"]) || 0,
+      subtaskCount: subtasks.get(task["id"])?.total || 0,
+      completedSubtaskCount: subtasks.get(task["id"])?.complete || 0,
+      labels: (assignedLabels.get(task["id"]) || []).sort((a, b) => a["name"].localeCompare(b["name"])),
+    });
+    data = Array.isArray(data) ? data.map(summary) : summary(data);
+  }
   return {
     data: method === "get" ? localizeSample(data) : data,
     status: 200,

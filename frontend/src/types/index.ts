@@ -84,6 +84,10 @@ export interface Task {
   priority: TaskPriority;
   assignedToId: string | null;
   assignedToName?: string | null;
+  commentCount?: number;
+  subtaskCount?: number;
+  completedSubtaskCount?: number;
+  labels?: { id: string; name: string; color: string }[];
   createdById: string;
   dueDate: string;
   createdAt: string;

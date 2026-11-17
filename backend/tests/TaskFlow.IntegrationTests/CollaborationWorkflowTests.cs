@@ -152,6 +152,62 @@ public class CollaborationWorkflowTests
         Assert.Equal(0, remaining.GetProperty("count").GetInt32());
     }
 
+    [Fact]
+    public async Task ChecklistAndCardSummaries_RespectPermissionsAndReflectChanges()
+    {
+        using var factory = new TaskFlowApiFactory();
+        using var owner = factory.CreateClient();
+        using var outsider = factory.CreateClient();
+        using var observer = factory.CreateClient();
+        await RegisterAndLogin(factory, owner, "checklist-owner@example.com");
+        await RegisterAndLogin(factory, outsider, "checklist-outsider@example.com");
+        var observerId = await RegisterAndLogin(factory, observer, "checklist-observer@example.com");
+        var workspaceId = (await ReadJson(await owner.PostAsJsonAsync("/api/workspaces", new { name = "Checklist" }))).GetProperty("id").GetGuid();
+        var projectId = (await ReadJson(await owner.PostAsJsonAsync("/api/projects", new { workspaceId, name = "Cards" }))).GetProperty("id").GetGuid();
+        var taskId = (await ReadJson(await owner.PostAsJsonAsync("/api/tasks", new { projectId, title = "Review" }))).GetProperty("id").GetGuid();
+        var otherTaskId = (await ReadJson(await owner.PostAsJsonAsync("/api/tasks", new { projectId, title = "Other" }))).GetProperty("id").GetGuid();
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.ProjectMembers.Add(new TaskFlow.Domain.Entities.ProjectMember
+            {
+                Id = Guid.NewGuid(), ProjectId = projectId, UserId = observerId, Role = "Observer", JoinedAt = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+        }
+        var url = $"/api/tasks/{taskId}/subtasks";
+        Assert.Equal(HttpStatusCode.NotFound, (await outsider.GetAsync(url)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await outsider.PostAsJsonAsync(url, new { title = "No", isCompleted = false })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await observer.PostAsJsonAsync(url, new { title = "No", isCompleted = false })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await owner.PostAsJsonAsync(url, new { title = " ", isCompleted = false })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await owner.PostAsJsonAsync(url, new { title = new string('x', 201), isCompleted = false })).StatusCode);
+        var created = await owner.PostAsJsonAsync(url, new { title = "  Check layout  ", isCompleted = false });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var subtask = await ReadJson(created);
+        var id = subtask.GetProperty("id").GetGuid();
+        Assert.Equal("Check layout", subtask.GetProperty("title").GetString());
+        Assert.Equal(HttpStatusCode.OK, (await observer.GetAsync(url)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await observer.PutAsJsonAsync($"{url}/{id}", new { title = "Changed", isCompleted = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await observer.DeleteAsync($"{url}/{id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await outsider.PutAsJsonAsync($"{url}/{id}", new { title = "Changed", isCompleted = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await outsider.DeleteAsync($"{url}/{id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await owner.DeleteAsync($"/api/tasks/{otherTaskId}/subtasks/{id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.PutAsJsonAsync($"{url}/{id}", new { title = "Check layout", isCompleted = true })).StatusCode);
+        var labelId = (await ReadJson(await owner.PostAsJsonAsync($"/api/workspaces/{workspaceId}/labels", new { name = "UX", color = "#244C3B" }))).GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.PutAsJsonAsync($"/api/tasks/{taskId}/labels", new { labelIds = new[] { labelId } })).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await owner.PostAsJsonAsync($"/api/tasks/{taskId}/comments", new { content = "Review ready" })).StatusCode);
+        var cards = await owner.GetFromJsonAsync<JsonElement[]>("/api/tasks");
+        var card = Assert.Single(cards!, item => item.GetProperty("id").GetGuid() == taskId);
+        Assert.Equal(1, card.GetProperty("commentCount").GetInt32());
+        Assert.Equal(1, card.GetProperty("subtaskCount").GetInt32());
+        Assert.Equal(1, card.GetProperty("completedSubtaskCount").GetInt32());
+        Assert.Equal("UX", Assert.Single(card.GetProperty("labels").EnumerateArray()).GetProperty("name").GetString());
+        Assert.Empty((await outsider.GetFromJsonAsync<JsonElement[]>("/api/tasks"))!);
+        Assert.Equal(1, (await owner.GetFromJsonAsync<JsonElement>($"/api/tasks/{taskId}")).GetProperty("completedSubtaskCount").GetInt32());
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync($"{url}/{id}")).StatusCode);
+        Assert.Equal(0, (await owner.GetFromJsonAsync<JsonElement>($"/api/tasks/{taskId}")).GetProperty("subtaskCount").GetInt32());
+    }
+
     private static async Task<Guid> RegisterAndLogin(TaskFlowApiFactory factory, HttpClient client, string email)
     {
         const string password = "StrongPassword123";

@@ -3494,3 +3494,26 @@ button.button {
 .board-column .task-title-button { font-size: 14px; }
 .board-column .task-details { font-size: 12px; line-height: 1.5; }
 .task-drawer-content .form-note { margin-top: 24px; }
+
+.task-card-labels { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.task-card-label { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 3px 7px; background: #f4f5ef; color: #455448; border-radius: 3px; font-size: 11px; overflow-wrap: anywhere; }
+.task-card-label i { width: 6px; height: 6px; flex-shrink: 0; border-radius: 50%; }
+.task-card-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding-top: 10px; border-top: 1px solid #e6e9e0; color: #59675e; font-size: 11px; }
+.task-card-checklist { display: grid; gap: 5px; min-width: 90px; }
+.task-card-checklist progress { width: 100%; height: 5px; accent-color: #244c3b; }
+.task-board-card.is-insertion-target::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; border-top: 3px solid #244c3b; }
+.checklist-items { padding: 0; margin: 16px 0; list-style: none; }
+.checklist-items li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid #dce1d7; }
+.checklist-items li label { display: flex; align-items: center; gap: 10px; margin: 0; min-width: 0; }
+.checklist-items li input { width: 18px; height: 18px; flex-shrink: 0; margin: 0; }
+.checklist-items li span { overflow-wrap: anywhere; }
+.checklist-items li .completed { color: #657269; text-decoration: line-through; }
+.checklist-items li button { flex-shrink: 0; }
+.checklist-summary { color: #59675e; font-size: 13px; margin-top: 10px; }
+
+.task-card-checklist progress { appearance: none; border: 0; border-radius: 2px; overflow: hidden; }
+.task-card-checklist progress::-webkit-progress-bar { background: #e5e9df; }
+.task-card-checklist progress::-webkit-progress-value { background: #244c3b; }
+.task-card-checklist progress::-moz-progress-bar { background: #244c3b; }
+
+.collaboration-controls { min-width: 0; padding: 0; margin: 0; border: 0; }

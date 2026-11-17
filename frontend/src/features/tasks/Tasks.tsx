@@ -1,7 +1,8 @@
 import { t as translate, localizeError } from "@/i18n/core";
 import { useLanguage } from "@/i18n/react";
 import { useState, useRef, useEffect } from "react";
-import { adjacentStage, droppedStage } from "./board";
+import { isDemo } from "@/services/demo";
+import { adjacentStage, droppedStage, parseBoardOrder, orderCards, reorderCard } from "./board";
 import { EntityForm } from "@/components/ui/EntityForm";
 import { useSearchParams, Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -19,12 +20,14 @@ export function Tasks() {
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
+  const orderKey = "taskflow.tasks.order." + (isDemo() ? "demo" : "account");
+  const [manualOrder, setManualOrder] = useState<string[]>(() => { try { return parseBoardOrder(localStorage.getItem(orderKey)); } catch { return []; } });
   const filters = {
     search: params.get("search") || "",
     status: params.get("status") || "all",
     priority: params.get("priority") || "all",
     projectId: params.get("projectId") || "",
-    sort: params.get("sort") || "priority",
+    sort: params.get("sort") || (manualOrder.length ? "manual" : "priority"),
   };
   const [rememberedView, setRememberedView] = useState(() => { try { return localStorage.getItem("taskflow.tasks.view") === "list" ? "list" : "board"; } catch { return "board"; } });
   const view = params.has("view") ? params.get("view") === "board" ? "board" : "list" : rememberedView;
@@ -33,7 +36,7 @@ export function Tasks() {
   const opener = useRef<HTMLElement | null>(null);
   const moving = useRef(false);
   const [optimistic, setOptimistic] = useState<Record<string, string>>({});
-  const [drag, setDrag] = useState<{ id: string; x: number; y: number; dx: number; dy: number; target: string } | null>(null);
+  const [drag, setDrag] = useState<{ id: string; x: number; y: number; dx: number; dy: number; target: string; beforeId: string | null } | null>(null);
   const dragRef = useRef<typeof drag>(null);
   function openPanel(value: { id?: string; status?: string }) { opener.current = document.activeElement as HTMLElement; setPanel(value); }
   function closePanel() {
@@ -52,7 +55,33 @@ export function Tasks() {
     else next.set(key, value);
     setParams(next, { replace: true, flushSync: true });
   };
-  const items = filterTasks((query.data?.tasks || []).map(task => optimistic[task.id] ? { ...task, status: optimistic[task.id] as Task["status"] } : task), filters);
+  const filteredItems = filterTasks((query.data?.tasks || []).map(task => optimistic[task.id] ? { ...task, status: optimistic[task.id] as Task["status"] } : task), filters);
+  const items = filters.sort === "manual" ? orderCards(filteredItems, manualOrder) : filteredItems;
+  function saveOrder(id: string, beforeId: string | null) {
+    const visibleIds = new Set(items.map(item => item.id));
+    const ids = [...items.map(item => item.id), ...orderCards(query.data?.tasks || [], manualOrder).filter(item => !visibleIds.has(item.id)).map(item => item.id)];
+    const next = reorderCard(ids, id, beforeId);
+    setManualOrder(next); update("sort", "manual");
+    try { localStorage.setItem(orderKey, JSON.stringify(next)); }
+    catch { setMessage("Ordem mantida nesta sessão; o navegador não permitiu salvá-la."); }
+  }
+  function moveWithinColumn(t: Task, direction: number) {
+    const column = items.filter(item => taskStatus(item.status) === taskStatus(t.status));
+    const index = column.findIndex(item => item.id === t.id);
+    const target = index + direction;
+    if (target < 0 || target >= column.length) return;
+    saveOrder(t.id, direction < 0 ? column[target]!.id : column[target + 1]?.id || null);
+    setMessage("Ordem do quadro atualizada."); setFailed(false);
+  }
+  async function dropCard(t: Task, current: NonNullable<typeof drag>) {
+    if (Math.hypot(current.dx, current.dy) <= 8 || !current.target) return;
+    const target = droppedStage(taskStatus(t.status), current.target, current.dx, current.dy);
+    if (target) {
+      if (await change(t, canonicalStatus(target))) saveOrder(t.id, current.beforeId);
+    } else if (current.target === taskStatus(t.status)) {
+      saveOrder(t.id, current.beforeId); setMessage("Ordem do quadro atualizada."); setFailed(false);
+    }
+  }
   async function change(t: Task, status: string, remove = false) {
     if (
       remove &&
@@ -62,8 +91,8 @@ export function Tasks() {
           translate("”? Esta ação não pode ser desfeita."),
       )
     )
-      return;
-    if (moving.current) return;
+      return false;
+    if (moving.current) return false;
     moving.current = true;
     if (!remove) setOptimistic({ [t.id]: status });
     setBusy(t.id);
@@ -77,9 +106,11 @@ export function Tasks() {
       }
       await cache.invalidateQueries();
       setMessage(remove ? "Tarefa excluída." : "Tarefa atualizada.");
+      return true;
     } catch (e) {
       setFailed(true);
       setMessage(handleApiError(e).message);
+      return false;
     } finally {
       setBusy("");
       moving.current = false;
@@ -88,13 +119,13 @@ export function Tasks() {
   }
   function row(t: Task, asBoardCard = false) {
     return (
-      <article className={"task-line task-record" + (asBoardCard ? " task-board-card" : "") + (drag?.id === t.id ? " is-dragging" : "")} key={t.id}
+      <article data-board-task={t.id} className={"task-line task-record" + (asBoardCard ? " task-board-card" : "") + (drag?.id === t.id ? " is-dragging" : "") + (drag?.beforeId === t.id && drag.target === taskStatus(t.status) ? " is-insertion-target" : "")} key={t.id}
         style={drag?.id === t.id ? { transform: `translate(${drag.dx}px, ${drag.dy}px)` } : undefined}>
         {asBoardCard && <button className="task-drag-handle" disabled={!!busy} aria-label={translate("Mover tarefa") + ": " + t.title} aria-describedby="board-move-help"
-          onKeyDown={event => { if (event.key === "Escape") { dragRef.current = null; setDrag(null); return; } if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return; event.preventDefault(); const next = adjacentStage(taskStatus(t.status), event.key === "ArrowRight" ? 1 : -1); if (next) void change(t, canonicalStatus(next)); }}
-          onPointerDown={event => { if (busy || event.button !== 0) return; event.currentTarget.setPointerCapture(event.pointerId); const value = { id: t.id, x: event.clientX, y: event.clientY, dx: 0, dy: 0, target: "" }; dragRef.current = value; setDrag(value); }}
-          onPointerMove={event => { const current = dragRef.current; if (!current || current.id !== t.id) return; const column = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-board-status]"); const value = { ...current, dx: event.clientX-current.x, dy: event.clientY-current.y, target: column?.dataset["boardStatus"] || "" }; dragRef.current = value; setDrag(value); }}
-          onPointerUp={event => { const current = dragRef.current; dragRef.current = null; setDrag(null); if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); if (current) { const target = droppedStage(taskStatus(t.status), current.target, current.dx, current.dy); if (target) void change(t, canonicalStatus(target)); } }}
+          onKeyDown={event => { if (event.key === "Escape") { dragRef.current = null; setDrag(null); return; } if (["ArrowUp", "ArrowDown"].includes(event.key)) { event.preventDefault(); moveWithinColumn(t, event.key === "ArrowUp" ? -1 : 1); return; } if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return; event.preventDefault(); const next = adjacentStage(taskStatus(t.status), event.key === "ArrowRight" ? 1 : -1); if (next) void change(t, canonicalStatus(next)); }}
+          onPointerDown={event => { if (busy || event.button !== 0) return; event.currentTarget.setPointerCapture(event.pointerId); const value = { id: t.id, x: event.clientX, y: event.clientY, dx: 0, dy: 0, target: "", beforeId: null }; dragRef.current = value; setDrag(value); }}
+          onPointerMove={event => { const current = dragRef.current; if (!current || current.id !== t.id) return; const column = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-board-status]"); const before = column ? Array.from(column.querySelectorAll<HTMLElement>("[data-board-task]")).find(card => card.dataset["boardTask"] !== t.id && event.clientY < card.getBoundingClientRect().top + card.getBoundingClientRect().height / 2) : null; const value = { ...current, dx: event.clientX-current.x, dy: event.clientY-current.y, target: column?.dataset["boardStatus"] || "", beforeId: before?.dataset["boardTask"] || null }; dragRef.current = value; setDrag(value); }}
+          onPointerUp={event => { const current = dragRef.current; dragRef.current = null; setDrag(null); if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); if (current) void dropCard(t, current); }}
           onPointerCancel={() => { dragRef.current = null; setDrag(null); }}>⠿</button>}
         <button
           className={"task-check " + (completed(t.status) ? "done" : taskStatus(t.status))}
@@ -119,6 +150,7 @@ export function Tasks() {
             </small>
           )}
           {t.description && <p className="task-description">{t.description}</p>}
+          {asBoardCard && !!t.labels?.length && <div className="task-card-labels" aria-label={translate("Etiquetas")}>{t.labels.map(label => <span key={label.id} className="task-card-label"><i aria-hidden="true" style={{ background: /^#[0-9a-f]{6}$/i.test(label.color) ? label.color : "#557a66" }}/>{label.name}</span>)}</div>}
           <div className="task-details">
             <span className={isOverdue(t.dueDate, t.status) ? "due-late" : ""}>
               {t.dueDate
@@ -128,6 +160,10 @@ export function Tasks() {
             {t.assignedToName && <span>{t.assignedToName}</span>}
           </div>
         </div>
+        {asBoardCard && (!!t.commentCount || !!t.subtaskCount) && <div className="task-card-summary">
+          {!!t.commentCount && <span>{translate("Comentários")}: {t.commentCount}</span>}
+          {!!t.subtaskCount && <span className="task-card-checklist"><span>{translate("Checklist")}: {t.completedSubtaskCount || 0}/{t.subtaskCount}</span><progress aria-label={translate("Progresso do checklist")} max={t.subtaskCount} value={t.completedSubtaskCount || 0}/></span>}
+        </div>}
         <div className="task-row-controls">
           <span className={"badge " + t.priority.toLowerCase()}>{statusLabel(t.priority)}</span>
           <label className={"task-status-control" + (asBoardCard ? " board-card-hidden-control" : "")}>
@@ -235,6 +271,7 @@ export function Tasks() {
         <label>
           {translate("Ordenar")}{" "}
           <select value={filters.sort} onChange={(e) => update("sort", e.target.value)}>
+            <option value="manual">{translate("Ordem manual")}</option>
             <option value="priority">{translate("Prioridade")}</option>
             <option value="deadline">{translate("Prazo")}</option>
             <option value="name">{translate("Nome")}</option>
@@ -264,7 +301,7 @@ export function Tasks() {
           {failed ? localizeError(message) : translate(message)}
         </p>
       )}
-      {view === "board" && <p className="board-help" id="board-move-help">{translate("Arraste pela alça para mudar de etapa. Use as setas esquerda/direita na alça ou o seletor de status.")}</p>}
+      {view === "board" && <p className="board-help" id="board-move-help">{translate("Arraste para mudar de etapa ou ordenar. Na alça, use ←/→ para etapas e ↑/↓ para a ordem. Ordem manual salva neste navegador.")}</p>}
       <Feedback loading={query.isLoading} error={!!query.error} retry={query.refetch}>
         {view === "list" && !items.length ? (
           <div className="feedback">

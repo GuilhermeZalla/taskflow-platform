@@ -170,3 +170,30 @@ test("deleting a demo workspace cascades its projects, tasks and members", async
     assert.equal((await demoAdapter({ url: "/api/" + kind, method: "get" })).data.length, 0);
   await assert.rejects(() => demoAdapter({ url: "/api/tasks/t1", method: "get" }));
 });
+
+test("checklists and card summaries follow edits and are isolated by task", async () => {
+  localStorage.clear();
+  const first = (await demoAdapter({ url: "/api/tasks/t1/subtasks", method: "post", data: { title: "  Check spacing  ", isCompleted: false } })).data;
+  const second = (await demoAdapter({ url: "/api/tasks/t1/subtasks", method: "post", data: { title: "Check keyboard", isCompleted: true } })).data;
+  assert.equal(first.title, "Check spacing");
+  await demoAdapter({ url: "/api/tasks/t1/comments", method: "post", data: { content: "Ready to review" } });
+  const label = (await demoAdapter({ url: "/api/workspaces/studio/labels", method: "post", data: { name: "UX", color: "#244C3B" } })).data;
+  await demoAdapter({ url: "/api/tasks/t1/labels", method: "put", data: { labelIds: [label.id] } });
+  const cards = (await demoAdapter({ url: "/api/tasks", method: "get" })).data;
+  const summary = cards.find(item => item.id === "t1");
+  assert.equal(summary.commentCount, 1);
+  assert.equal(summary.subtaskCount, 2);
+  assert.equal(summary.completedSubtaskCount, 1);
+  assert.equal(summary.labels[0].name, "UX");
+  assert.equal(cards.find(item => item.id === "t2").subtaskCount, 0);
+  assert.deepEqual((await demoAdapter({ url: "/api/tasks/t2/subtasks", method: "get" })).data, []);
+  await assert.rejects(() => demoAdapter({ url: `/api/tasks/t2/subtasks/${first.id}`, method: "put", data: { title: "Wrong task", isCompleted: true } }));
+  await assert.rejects(() => demoAdapter({ url: "/api/tasks/t1/subtasks", method: "post", data: { title: " ", isCompleted: false } }));
+  await assert.rejects(() => demoAdapter({ url: "/api/tasks/t1/subtasks", method: "post", data: { title: "x".repeat(201), isCompleted: false } }));
+  await demoAdapter({ url: `/api/tasks/t1/subtasks/${first.id}`, method: "put", data: { title: first.title, isCompleted: true } });
+  assert.equal((await demoAdapter({ url: "/api/tasks/t1", method: "get" })).data.completedSubtaskCount, 2);
+  await demoAdapter({ url: `/api/tasks/t1/subtasks/${second.id}`, method: "delete" });
+  assert.equal((await demoAdapter({ url: "/api/tasks/t1", method: "get" })).data.subtaskCount, 1);
+  await demoAdapter({ url: "/api/tasks/t1", method: "delete" });
+  assert.deepEqual(JSON.parse(localStorage.getItem("taskflow.demo.v1")).subtasks, []);
+});

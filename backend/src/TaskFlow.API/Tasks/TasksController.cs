@@ -66,7 +66,10 @@ public class TasksController : ControllerBase
                 CreatedAt = t.CreatedAt,
                 UpdatedAt = t.UpdatedAt,
                 SubtaskCount = t.Subtasks.Count,
-                CommentCount = t.Comments.Count
+                CommentCount = t.Comments.Count,
+                CompletedSubtaskCount = t.Subtasks.Count(subtask => subtask.IsCompleted),
+                Labels = t.Labels.OrderBy(link => link.Label.Name)
+                    .Select(link => new TaskLabelDto(link.Label.Id, link.Label.Name, link.Label.Color)).ToList()
             })
             .ToListAsync(cancellationToken);
 
@@ -137,7 +140,10 @@ public class TasksController : ControllerBase
                 CreatedAt = t.CreatedAt,
                 UpdatedAt = t.UpdatedAt,
                 SubtaskCount = t.Subtasks.Count,
-                CommentCount = t.Comments.Count
+                CommentCount = t.Comments.Count,
+                CompletedSubtaskCount = t.Subtasks.Count(subtask => subtask.IsCompleted),
+                Labels = t.Labels.OrderBy(link => link.Label.Name)
+                    .Select(link => new TaskLabelDto(link.Label.Id, link.Label.Name, link.Label.Color)).ToList()
             })
             .FirstOrDefaultAsync(cancellationToken);
 

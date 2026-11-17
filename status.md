@@ -230,5 +230,20 @@ Escopo aprovado para demo e aplicação completa, preservando a identidade verde
 ### Continuidade / validação adicional
 
 - [ ] Conferir o gesto em aparelho físico com toque e provocar falha de rede/API para validar o retorno visual em teste de integração. O tratamento de falha já existe no código; ainda não foi exercitado nesse cenário pelo navegador.
-- [ ] Evoluir indicadores de comentários/etiquetas e progresso de checklist nos cards a partir de dados reais agregados, sem inventar contadores ou fazer requisições por card. O painel lateral já disponibiliza comentários, etiquetas e dependências existentes.
-- A movimentação entre etapas usa o endpoint de atualização já existente. A preferência de visualização fica no navegador; não foi criada uma ordem manual de cards dentro da mesma coluna.
+- [x] Indicadores agregados reais de comentários/etiquetas/checklist implementados na continuação abaixo.
+- A movimentação entre etapas usa o endpoint de atualização já existente. A preferência de visualização fica no navegador; a ordem manual dentro da mesma coluna foi adicionada na continuação abaixo.
+
+
+## Refinamentos dos cards — 17/11/2026 (concluído)
+
+- [x] Exibir contagem real de comentários e etiquetas nos cards, agregadas na resposta de tarefas.
+- [x] Disponibilizar checklist de subtarefas no painel e progresso real nos cards, reutilizando a entidade existente.
+- [x] Permitir reordenar cards dentro da coluna por arraste e teclado, com preferência manual persistida neste navegador.
+- [x] Validar componentes compartilhados, API de checklist e demo; README atualizado. Publicação pelo workflow existente após push.
+- [ ] Evolução futura: chat da equipe.
+
+Não são necessárias novas dependências nem migrations para este escopo. A ordem manual é uma preferência de visualização local; não é compartilhada entre dispositivos ou integrantes.
+
+Validação desta entrega: 34 testes frontend aprovados; build/tipos aprovado; 3 testes de integração de colaboração aprovados em banco isolado (inclui acesso externo negado, observador sem escrita, isolamento por tarefa, título inválido e agregação atualizada). Navegador confirmou arraste dentro da coluna, teclado, persistência após reload, checklist 1/2, etiqueta/comentário reais e pt/en. Painel a 390 px: largura e scrollWidth de 360 px, sem overflow horizontal. Nenhuma migration ou alteração no banco real.
+
+Entre os refinamentos funcionais discutidos, permanece pendente apenas o chat da equipe. Hospedagem completa continua como pendência operacional anterior; testes em aparelho físico e contra MySQL/rede real continuam sendo validações adicionais, não novas funcionalidades.
