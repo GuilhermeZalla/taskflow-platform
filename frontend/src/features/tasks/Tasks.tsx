@@ -1,6 +1,8 @@
 import { t as translate, localizeError } from "@/i18n/core";
 import { useLanguage } from "@/i18n/react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { adjacentStage, droppedStage } from "./board";
+import { EntityForm } from "@/components/ui/EntityForm";
 import { useSearchParams, Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { api, handleApiError } from "@/services/api";
@@ -24,14 +26,26 @@ export function Tasks() {
     projectId: params.get("projectId") || "",
     sort: params.get("sort") || "priority",
   };
-  const view = params.get("view") === "board" ? "board" : "list";
+  const [rememberedView, setRememberedView] = useState(() => { try { return localStorage.getItem("taskflow.tasks.view") === "list" ? "list" : "board"; } catch { return "board"; } });
+  const view = params.has("view") ? params.get("view") === "board" ? "board" : "list" : rememberedView;
+  const [panel, setPanel] = useState<{ id?: string; status?: string } | null>(null);
+  const panelRef = useRef<HTMLDialogElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
+  const moving = useRef(false);
+  const [optimistic, setOptimistic] = useState<Record<string, string>>({});
+  const [drag, setDrag] = useState<{ id: string; x: number; y: number; dx: number; dy: number; target: string } | null>(null);
+  const dragRef = useRef<typeof drag>(null);
+  function openPanel(value: { id?: string; status?: string }) { opener.current = document.activeElement as HTMLElement; setPanel(value); }
+  function closePanel() { setPanel(null); opener.current?.focus(); }
+  useEffect(() => { if (panel && !panelRef.current?.open) panelRef.current?.showModal(); }, [panel]);
   const update = (key: string, value: string) => {
+    if (key === "view") { setRememberedView(value); try { localStorage.setItem("taskflow.tasks.view", value); } catch { /* Session preference still works without storage. */ } }
     const next = new URLSearchParams(params);
     if (!value || value === "all") next.delete(key);
     else next.set(key, value);
     setParams(next, { replace: true, flushSync: true });
   };
-  const items = filterTasks(query.data?.tasks || [], filters);
+  const items = filterTasks((query.data?.tasks || []).map(task => optimistic[task.id] ? { ...task, status: optimistic[task.id] as Task["status"] } : task), filters);
   async function change(t: Task, status: string, remove = false) {
     if (
       remove &&
@@ -42,12 +56,18 @@ export function Tasks() {
       )
     )
       return;
+    if (moving.current) return;
+    moving.current = true;
+    if (!remove) setOptimistic({ [t.id]: status });
     setBusy(t.id);
     setMessage("");
     setFailed(false);
     try {
       if (remove) await api.delete("/api/tasks/" + t.id);
-      else await api.put("/api/tasks/" + t.id, { ...t, status });
+      else {
+        await api.put("/api/tasks/" + t.id, { ...t, status });
+        cache.setQueryData<typeof query.data>(["work-data"], old => old ? { ...old, tasks: old.tasks.map(item => item.id === t.id ? { ...item, status: status as Task["status"] } : item) } : old);
+      }
       await cache.invalidateQueries();
       setMessage(remove ? "Tarefa excluída." : "Tarefa atualizada.");
     } catch (e) {
@@ -55,11 +75,20 @@ export function Tasks() {
       setMessage(handleApiError(e).message);
     } finally {
       setBusy("");
+      moving.current = false;
+      setOptimistic({});
     }
   }
   function row(t: Task, asBoardCard = false) {
     return (
-      <article className={"task-line task-record" + (asBoardCard ? " task-board-card" : "")} key={t.id}>
+      <article className={"task-line task-record" + (asBoardCard ? " task-board-card" : "") + (drag?.id === t.id ? " is-dragging" : "")} key={t.id}
+        style={drag?.id === t.id ? { transform: `translate(${drag.dx}px, ${drag.dy}px)` } : undefined}>
+        {asBoardCard && <button className="task-drag-handle" disabled={!!busy} aria-label={translate("Mover tarefa") + ": " + t.title} aria-describedby="board-move-help"
+          onKeyDown={event => { if (event.key === "Escape") { dragRef.current = null; setDrag(null); return; } if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return; event.preventDefault(); const next = adjacentStage(taskStatus(t.status), event.key === "ArrowRight" ? 1 : -1); if (next) void change(t, canonicalStatus(next)); }}
+          onPointerDown={event => { if (busy || event.button !== 0) return; event.currentTarget.setPointerCapture(event.pointerId); const value = { id: t.id, x: event.clientX, y: event.clientY, dx: 0, dy: 0, target: "" }; dragRef.current = value; setDrag(value); }}
+          onPointerMove={event => { const current = dragRef.current; if (!current || current.id !== t.id) return; const column = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-board-status]"); const value = { ...current, dx: event.clientX-current.x, dy: event.clientY-current.y, target: column?.dataset["boardStatus"] || "" }; dragRef.current = value; setDrag(value); }}
+          onPointerUp={event => { const current = dragRef.current; dragRef.current = null; setDrag(null); if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); if (current) { const target = droppedStage(taskStatus(t.status), current.target, current.dx, current.dy); if (target) void change(t, canonicalStatus(target)); } }}
+          onPointerCancel={() => { dragRef.current = null; setDrag(null); }}>⠿</button>}
         <button
           className={"task-check " + (completed(t.status) ? "done" : taskStatus(t.status))}
           disabled={!!busy}
@@ -76,9 +105,7 @@ export function Tasks() {
               {query.data?.projects.find((p) => p.id === t.projectId)?.name || translate("Projeto")}
             </small>
           )}
-          <Link className="task-title" to={"/tasks/" + t.id + "/edit"}>
-            {t.title}
-          </Link>
+          {asBoardCard ? <button className="task-title task-title-button" onClick={() => openPanel({ id: t.id })}>{t.title}</button> : <Link className="task-title" to={"/tasks/" + t.id + "/edit"}>{t.title}</Link>}
           {!asBoardCard && (
             <small>
               {query.data?.projects.find((p) => p.id === t.projectId)?.name || translate("Projeto")}
@@ -221,7 +248,7 @@ export function Tasks() {
             </button>
           ))}
         </div>
-        <button className="quiet" onClick={() => setParams({})}>
+        <button className="quiet" onClick={() => setParams({ view })}>
           {translate("Limpar filtros")}{" "}
         </button>
       </div>
@@ -230,8 +257,9 @@ export function Tasks() {
           {failed ? localizeError(message) : translate(message)}
         </p>
       )}
+      {view === "board" && <p className="board-help" id="board-move-help">{translate("Arraste pela alça para mudar de etapa. Use as setas esquerda/direita na alça ou o seletor de status.")}</p>}
       <Feedback loading={query.isLoading} error={!!query.error} retry={query.refetch}>
-        {!items.length ? (
+        {view === "list" && !items.length ? (
           <div className="feedback">
             <h2>{translate("Nenhuma tarefa nesta seleção")}</h2>
             <p>{translate("Ajuste os filtros ou registre o próximo passo do projeto.")}</p>
@@ -240,7 +268,7 @@ export function Tasks() {
         ) : view === "list" ? (
           <section className="panel task-list">{items.map((task) => row(task))}</section>
         ) : (
-          <div className="board">
+          <div className="board" aria-describedby="board-move-help">
             {[
               "todo",
               "inprogress",
@@ -252,7 +280,7 @@ export function Tasks() {
                   .filter((s) => !["todo", "inprogress", "review", "done"].includes(s)),
               ),
             ].map((key) => (
-              <section className="board-column" key={key}>
+              <section className={"board-column" + (drag?.target === key ? " is-drop-target" : "")} data-board-status={key} key={key}>
                 <h2>
                   {statusLabel(key)}
                   <span>{items.filter((t) => taskStatus(t.status) === key).length}</span>
@@ -261,21 +289,13 @@ export function Tasks() {
                 {!items.some((t) => taskStatus(t.status) === key) && (
                   <p className="board-empty">{translate("Sem tarefas nesta etapa.")}</p>
                 )}
-                <Link
-                  className="text-action"
-                  to={
-                    "/tasks/create?status=" +
-                    canonicalStatus(key) +
-                    (filters.projectId ? "&projectId=" + filters.projectId : "")
-                  }
-                >
-                  {translate("+ Adicionar tarefa")}{" "}
-                </Link>
+                <button className="text-action" onClick={() => openPanel({ status: canonicalStatus(key) })}>{translate("+ Adicionar tarefa")}</button>
               </section>
             ))}
           </div>
         )}
       </Feedback>
+      {panel && <dialog ref={panelRef} className="task-detail-drawer" aria-label={translate("Detalhes da tarefa")} onCancel={event => { event.preventDefault(); closePanel(); }} onClick={event => { if (event.target === event.currentTarget) closePanel(); }}><div className="task-drawer-content"><EntityForm key={panel.id || panel.status || "new"} kind="tasks" recordId={panel.id} initialStatus={panel.status} initialProjectId={filters.projectId} onComplete={closePanel}/></div></dialog>}
     </>
   );
 }

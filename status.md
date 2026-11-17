@@ -214,3 +214,21 @@ Fase concluída nesta sessão: **Backend CRUD completo + Frontend buildável**.
 3. Criar migrations EF Core e validar fluxo completo com PostgreSQL (docker-compose).
 4. Adicionar tratamento global de exceções/ProblemDetails e validação FluentValidation no pipeline.
 5. Evoluir UI (edição/exclusão, detalhes, proteção de rotas autenticadas, loading/erros melhores).
+
+
+## Quadro moderno e interação — 17/11/2026 (em andamento)
+
+Escopo aprovado para demo e aplicação completa, preservando a identidade verde e sem novas dependências:
+- [x] Quadro mais evidente e memória da última visualização.
+- [x] Cards com título, projeto, prioridade, prazo e responsável hierarquizados.
+- [x] Arrastar entre etapas por mouse/toque, alternativa por teclado/seletor, feedback e retorno em caso de erro.
+- [x] Painel lateral reutilizando edição e colaboração (comentários, etiquetas e dependências), com foco e fechamento acessíveis.
+- [x] Criação rápida em cada coluna, com etapa predefinida.
+- [x] 31 testes frontend, build/tipos, tradução pt/en e README. Navegador validou arrastar com mouse, teclado, abertura/fechamento por Escape, criação por coluna, persistência após reload e painel a 390 px. Publicação pelo workflow existente, sem novas dependências ou mudanças de banco/API.
+- Chat de equipe da referência: sugestão futura, não incluída nesta entrega.
+
+### Continuidade / validação adicional
+
+- [ ] Conferir o gesto em aparelho físico com toque e provocar falha de rede/API para validar o retorno visual em teste de integração. O tratamento de falha já existe no código; ainda não foi exercitado nesse cenário pelo navegador.
+- [ ] Evoluir indicadores de comentários/etiquetas e progresso de checklist nos cards a partir de dados reais agregados, sem inventar contadores ou fazer requisições por card. O painel lateral já disponibiliza comentários, etiquetas e dependências existentes.
+- A movimentação entre etapas usa o endpoint de atualização já existente. A preferência de visualização fica no navegador; não foi criada uma ordem manual de cards dentro da mesma coluna.

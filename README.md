@@ -233,3 +233,10 @@ See [status.md](status.md) for validations and remaining work. Public hosting of
 AI tools were used to support productivity in drafting, organizing, and reviewing the **documentation**, creating **mockups and visual references**, suggesting and assisting with the implementation of **layouts, styles, and responsiveness**, and preparing and reviewing **automated test scenarios**.
 
 The product idea and business rules are the developer's own. Technical decisions, architecture, implementation reviews, and responsibility for the code and final result remain with the developer.
+
+
+### Task board
+
+Tasks open in Board view by default and remember your last List/Board choice on this browser. Move a card using its handle (mouse or touch), use left/right arrow keys on that handle, or choose a status from its selector. Drops outside a column and short clicks do not change a task. Updates show immediately; a failed save restores the previous state with an error message.
+
+Click a card title to edit in a modal side panel without leaving the current filters. The panel reuses the task editor and its comments, labels and dependencies. Use Escape, Close or Cancel to return to the board. Each column offers Add task with its status preselected, including empty columns. The same components and API contracts are used in the public demo and the full application; demo changes remain fictional.

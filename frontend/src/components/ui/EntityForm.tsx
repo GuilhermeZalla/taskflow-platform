@@ -20,17 +20,18 @@ type RecordData = {
   dueDate?: string | null;
   assignedToId?: string | null;
 };
-export function EntityForm({ kind }: { kind: "workspaces" | "projects" | "tasks" }) {
+export function EntityForm({ kind, recordId, initialStatus, initialProjectId, onComplete }: { kind: "workspaces" | "projects" | "tasks"; recordId?: string; initialStatus?: string; initialProjectId?: string; onComplete?: () => void }) {
   useLanguage();
-  const { id } = useParams();
+  const { id: routeId } = useParams();
+  const id = recordId ?? routeId;
   const task = kind === "tasks",
     space = kind === "workspaces";
   const [params] = useSearchParams();
   const [name, setName] = useState(""),
     [description, setDescription] = useState(""),
-    [parent, setParent] = useState(params.get(task ? "projectId" : "workspaceId") || ""),
+    [parent, setParent] = useState(initialProjectId || params.get(task ? "projectId" : "workspaceId") || ""),
     [priority, setPriority] = useState("Medium"),
-    [status, setStatus] = useState(params.get("status") || (task ? "ToDo" : "Active")),
+    [status, setStatus] = useState(initialStatus || params.get("status") || (task ? "ToDo" : "Active")),
     [start, setStart] = useState(""),
     [due, setDue] = useState(""),
     [assigned, setAssigned] = useState(""),
@@ -96,7 +97,7 @@ export function EntityForm({ kind }: { kind: "workspaces" | "projects" | "tasks"
     try {
       await api.delete("/api/" + kind + "/" + id);
       await cache.invalidateQueries();
-      navigate("/" + kind);
+      if (onComplete) onComplete(); else navigate("/" + kind);
     } catch (e) {
       setError(handleApiError(e).message);
     } finally {
@@ -106,9 +107,7 @@ export function EntityForm({ kind }: { kind: "workspaces" | "projects" | "tasks"
   const iso = (value: string) => (value ? value + "T12:00:00Z" : null);
   return (
     <>
-      <Link className="back-link" to={"/" + kind}>
-        {translate("← Voltar")}{" "}
-      </Link>
+      {onComplete ? <button className="quiet" onClick={onComplete}>{translate("Fechar painel")}</button> : <Link className="back-link" to={"/" + kind}>{translate("← Voltar")}</Link>}
       <PageHeading
         title={(id ? translate("Editar ") : translate("Criar ")) + label}
         description={
@@ -153,7 +152,7 @@ export function EntityForm({ kind }: { kind: "workspaces" | "projects" | "tasks"
                 if (id) await api.put("/api/" + kind + "/" + id, body);
                 else await api.post("/api/" + kind, body);
                 await cache.invalidateQueries();
-                navigate("/" + kind);
+                if (onComplete) onComplete(); else navigate("/" + kind);
               } catch (e) {
                 setError(handleApiError(e).message);
               } finally {
@@ -316,9 +315,7 @@ export function EntityForm({ kind }: { kind: "workspaces" | "projects" | "tasks"
                   {translate("Excluir")}{" "}
                 </button>
               )}
-              <Link className="button secondary" to={"/" + kind}>
-                {translate("Cancelar")}{" "}
-              </Link>
+              {onComplete ? <button type="button" className="button secondary" disabled={busy} onClick={onComplete}>{translate("Cancelar")}</button> : <Link className="button secondary" to={"/" + kind}>{translate("Cancelar")}</Link>}
               <button
                 className="button"
                 disabled={

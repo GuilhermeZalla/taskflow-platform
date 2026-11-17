@@ -1,4 +1,8 @@
 export const english: Record<string, string> = {
+  "Fechar painel": "Close panel",
+  "Detalhes da tarefa": "Task details",
+  "Mover tarefa": "Move task",
+  "Arraste pela alça para mudar de etapa. Use as setas esquerda/direita na alça ou o seletor de status.": "Drag the handle to change stage. Use left/right arrows on the handle or the status selector.",
   "Conta criada. Entre para acompanhar a confirmação do seu e-mail.": "Account created. Sign in to check your email confirmation.",
   "Verificar confirmação": "Check confirmation",
   "Confirmação ainda pendente. Confira seu e-mail ou reenvie o link.": "Confirmation is still pending. Check your inbox or resend the link.",
