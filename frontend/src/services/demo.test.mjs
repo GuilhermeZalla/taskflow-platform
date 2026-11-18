@@ -52,7 +52,7 @@ test("project filters isolate tasks and empty filters retain all records", async
   assert.equal(
     (await demoAdapter({ url: "/api/tasks", method: "get", params: { projectId: "" } })).data
       .length,
-    4,
+    6,
   );
 });
 test("sample preview content follows the selected language without rewriting saved data", async () => {
@@ -97,7 +97,6 @@ test("detail reads and edits retain the same record and produce a local activity
 test("task editor collaboration lists and changes use local demo collections", async () => {
   localStorage.clear();
   for (const url of [
-    "/api/workspaces/studio/labels",
     "/api/tasks/t1/labels",
     "/api/tasks/t1/dependencies",
     "/api/tasks/t1/comments",
@@ -139,8 +138,8 @@ test("deleting a demo task clears its collaboration records", async () => {
   await demoAdapter({ url: "/api/tasks/t1", method: "delete" });
   assert.deepEqual((await demoAdapter({ url: "/api/tasks/t2/dependencies", method: "get" })).data, []);
   const stored = JSON.parse(localStorage.getItem("taskflow.demo.v1"));
-  assert.deepEqual(stored.taskLabels, []);
-  assert.deepEqual(stored.comments, []);
+  assert.deepEqual(stored.taskLabels.filter(item => item.taskId === "t1"), []);
+  assert.deepEqual(stored.comments.filter(item => item.taskId === "t1"), []);
 });
 
 test("demo members reject duplicate email and removal clears task assignment", async () => {
@@ -195,5 +194,18 @@ test("checklists and card summaries follow edits and are isolated by task", asyn
   await demoAdapter({ url: `/api/tasks/t1/subtasks/${second.id}`, method: "delete" });
   assert.equal((await demoAdapter({ url: "/api/tasks/t1", method: "get" })).data.subtaskCount, 1);
   await demoAdapter({ url: "/api/tasks/t1", method: "delete" });
-  assert.deepEqual(JSON.parse(localStorage.getItem("taskflow.demo.v1")).subtasks, []);
+  assert.deepEqual(JSON.parse(localStorage.getItem("taskflow.demo.v1")).subtasks.filter(item => item.taskId === "t1"), []);
+});
+
+test("demo examples include real collaboration and can be loaded without overwriting edits", async () => {
+  localStorage.clear();
+  const {loadDemoExamples} = await import("./demo.ts");
+  startDemo();
+  const cards = (await demoAdapter({url:"/api/tasks",method:"get"})).data;
+  const sample = cards.find(item => item.id === "t6");
+  assert.equal(sample.commentCount,1); assert.equal(sample.subtaskCount,2); assert.equal(sample.completedSubtaskCount,1);
+  await demoAdapter({url:"/api/tasks/t1",method:"put",data:{title:"My edited sample"}});
+  loadDemoExamples(); loadDemoExamples();
+  assert.equal((await demoAdapter({url:"/api/tasks/t1",method:"get"})).data.title,"My edited sample");
+  assert.equal((await demoAdapter({url:"/api/tasks",method:"get"})).data.length,6);
 });

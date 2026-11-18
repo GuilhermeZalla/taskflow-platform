@@ -247,3 +247,20 @@ Não são necessárias novas dependências nem migrations para este escopo. A or
 Validação desta entrega: 34 testes frontend aprovados; build/tipos aprovado; 3 testes de integração de colaboração aprovados em banco isolado (inclui acesso externo negado, observador sem escrita, isolamento por tarefa, título inválido e agregação atualizada). Navegador confirmou arraste dentro da coluna, teclado, persistência após reload, checklist 1/2, etiqueta/comentário reais e pt/en. Painel a 390 px: largura e scrollWidth de 360 px, sem overflow horizontal. Nenhuma migration ou alteração no banco real.
 
 Entre os refinamentos funcionais discutidos, permanece pendente apenas o chat da equipe. Hospedagem completa continua como pendência operacional anterior; testes em aparelho físico e contra MySQL/rede real continuam sendo validações adicionais, não novas funcionalidades.
+
+
+## Refinamento editorial e acompanhamento — 18/11/2026 (concluído)
+
+Escopo aprovado para demo e aplicação completa, preservando identidade, APIs e dependências:
+- [x] Compactar cards e organizar filtros secundários com filtros ativos removíveis.
+- [x] Separar painel da tarefa em detalhes, checklist, comentários e organização.
+- [x] Visão geral com Meu trabalho/Toda a equipe e agrupamento por atrasadas/hoje/próximos dias/sem prazo.
+- [x] Página de acompanhamento do projeto: objetivo, equipe, prazos, progresso e acesso às tarefas; edição separada.
+- [x] Conteúdo mais direto em pt/en e exemplos de demo com colaboração e tarefas concluídas.
+- [x] 37 testes frontend aprovados e builds normal/demo aprovados. Conferência visual em desktop, 768 e 390 px, sem overflow nas telas verificadas. Publicação pelo workflow existente após push.
+
+Nenhum novo movimento será aplicado antes de uma prévia aprovada. Chat e hospedagem completa continuam pendentes.
+
+Validação: alternância pessoal/equipe, exemplos sem sobrescrever edições, navegação projeto/quadro, remoção de filtro preservando status, editor por seções e rascunho preservado após atualizar o checklist. Página do projeto e papéis da equipe conferidos em pt/en. Nova página carregada sob demanda. O build completo emite aviso não bloqueante de bundle principal (~506 kB); o build público da demo permanece abaixo desse limite. Não foram repetidos testes de backend porque não houve mudança de API, persistência ou regras de autorização. Nenhuma migration, dado real ou dependência alterada.
+
+Continuam pendentes: chat da equipe e hospedagem completa. Validação em aparelho físico/API real permanece uma verificação operacional adicional. Novos movimentos seguem dependendo de prévia aprovada.

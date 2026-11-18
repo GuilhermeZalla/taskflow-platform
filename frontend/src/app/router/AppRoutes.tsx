@@ -54,6 +54,7 @@ const routes = [
       { path: "workspaces/create", element: <CreateWorkspace /> },
       { path: "projects", element: <Projects /> },
       { path: "projects/create", element: <CreateProject /> },
+      { path: "projects/:id", lazy: async () => ({Component: (await import("@/features/projects/ProjectDetails")).ProjectDetails}) },
       { path: "tasks", element: <Tasks /> },
       { path: "tasks/create", element: <CreateTask /> },
       { path: "tasks/:id/edit", element: <EntityForm kind="tasks" /> },

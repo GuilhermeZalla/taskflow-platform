@@ -245,3 +245,13 @@ Click a card title to edit in a modal side panel without leaving the current fil
 Cards display real comment counts, assigned labels and completed/total checklist progress when these data exist. Task list/detail responses include these summaries, so the board does not request collaboration data separately for each card. Add, complete or remove checklist items from the task panel; these changes immediately refresh the card summary. Checklist changes do not automatically complete the parent task. The API enforces project access, rejects observer writes and validates item titles (1–200 characters). It uses the existing `Subtasks` table; no migration is required.
 
 Reorder cards within a column by dragging the handle, or use Up/Down on that handle. Left/Right continues to change workflow stages. Dragging automatically selects Manual order; choose Priority, Deadline or Name to return to automatic sorting. The order is a browser preference, stored separately for demo and real accounts; it is not shared with teammates or synchronized between devices. Filters retain the saved order without removing hidden tasks. If browser storage is unavailable, the order remains usable for the current session with a notice. Team chat remains a future enhancement.
+
+### Focused workspace and project overview
+
+The overview switches between My work (tasks assigned to the signed-in user) and Whole team. Open tasks are grouped into overdue, today, upcoming and undated sections. Project progress in My work reflects only that user's tasks; the project details page always shows the full accessible project. These are presentation filters, not authorization rules.
+
+Project names in the list and overview open a dedicated page with the objective, dates, actual completion, task owners and the workspace team. Editing remains a separate action. The team section explicitly describes workspace membership, not a project-specific roster.
+
+The task board uses compact cards and removable filter tokens. Search and sorting remain visible; secondary filters can be expanded. Editing a task separates Details, Checklist, Comments and Organization, while retaining unsaved form values when switching sections or refreshing collaboration data.
+
+Fresh demo data includes a completed project and tasks with comments, labels, dependencies and a checklist. Existing demo visitors can choose Load examples from the overview to add missing sample records without overwriting edits or clearing their data. No real account, database or email is involved. New movement proposals, team chat and full-stack hosting remain outside this delivery.

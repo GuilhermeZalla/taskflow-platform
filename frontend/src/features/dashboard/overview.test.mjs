@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { summarizeOverview, formatDeadline } from "./overview.ts";
+import { summarizeOverview, formatDeadline, scopeWork, groupPriorities } from "./overview.ts";
 const projects = [
   { id: "a", workspaceId: "one", name: "Alpha", status: "Active" },
   { id: "b", workspaceId: "two", name: "Beta", status: "Completed" },
@@ -59,4 +59,26 @@ test("summary never reorders the input and formats date-only deadlines on their 
   summarizeOverview(projects, tasks);
   assert.equal(tasks[0].id, "1");
   assert.match(formatDeadline("2026-11-21"), /21/);
+});
+
+test("personal scope never includes another assignee or falls back to the team without identity", () => {
+  const records = [{id:"a",projectId:"a",assignedToId:"me"},{id:"b",projectId:"b",assignedToId:"other"},{id:"c",projectId:"a",assignedToId:null}];
+  assert.deepEqual(scopeWork(projects,records,true,"me").tasks.map(task=>task.id),["a"]);
+  assert.deepEqual(scopeWork(projects,records,true,"me").projects.map(project=>project.id),["a"]);
+  assert.equal(scopeWork(projects,records,false).tasks.length,3);
+  assert.deepEqual(scopeWork(projects,records,true).tasks,[]);
+});
+test("priority groups use calendar days and keep completed and invalid dates honest", () => {
+  const items = [
+    {id:"late",status:"ToDo",dueDate:"2026-11-17T12:00:00Z"},
+    {id:"today",status:"Review",dueDate:"2026-11-18"},
+    {id:"future",status:"InProgress",dueDate:"2026-11-19"},
+    {id:"none",status:"ToDo",dueDate:"invalid"},
+    {id:"done",status:"Done",dueDate:"2026-11-17"},
+  ];
+  const groups = groupPriorities(items,new Date(2026,10,18,20));
+  assert.deepEqual(groups.late.map(item=>item.id),["late"]);
+  assert.deepEqual(groups.today.map(item=>item.id),["today"]);
+  assert.deepEqual(groups.upcoming.map(item=>item.id),["future"]);
+  assert.deepEqual(groups.undated.map(item=>item.id),["none"]);
 });

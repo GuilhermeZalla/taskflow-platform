@@ -11,7 +11,7 @@ type Label = { id: string; name: string; color: string };
 type Dependency = { dependsOnTaskId: string; title: string; status: string };
 type Member = { id: string; name: string; email?: string };
 
-export function TaskCollaboration({ taskId, projectId }: { taskId: string; projectId: string }) {
+export function TaskCollaboration({ taskId, projectId, section = "all" }: { taskId: string; projectId: string; section?: string }) {
   useLanguage();
   const cache = useQueryClient();
   const work = useWorkData();
@@ -43,7 +43,7 @@ export function TaskCollaboration({ taskId, projectId }: { taskId: string; proje
   return <div className="task-collaboration">
     {error && <p className="error" role="alert">{error}</p>}
     <fieldset className="collaboration-controls" disabled={busy}>
-    <section className="task-checklist"><h2>{translate("Checklist")}</h2>
+    <section className="task-checklist" hidden={section !== "all" && section !== "checklist"}><h2>{translate("Checklist")}</h2>
       {subtasks.isError ? <p role="alert">{translate("Não foi possível carregar o checklist.")} <button className="quiet" onClick={() => void subtasks.refetch()}>{translate("Tentar novamente")}</button></p> : subtasks.isLoading ? <p role="status">{translate("Carregando…")}</p> : <>
         {!!subtasks.data?.length && <p className="checklist-summary" role="status">{translate("{done} de {total} concluídas", { done: subtasks.data.filter(item => item.isCompleted).length, total: subtasks.data.length })}</p>}
         <ul className="checklist-items">{subtasks.data?.map(item => <li key={item.id}>
@@ -56,26 +56,29 @@ export function TaskCollaboration({ taskId, projectId }: { taskId: string; proje
         <button className="button secondary" disabled={busy || !subtaskTitle.trim()}>{translate("Adicionar")}</button>
       </form>
     </section>
-    <section><h2>{translate("Etiquetas")}</h2>
+    <section hidden={section !== "all" && section !== "organization"}><h2>{translate("Etiquetas")}</h2>
       <form className="inline-form" onSubmit={(e) => { e.preventDefault(); void act(async () => { const created = await api.post<Label>(`/api/workspaces/${workspaceId}/labels`, { name: labelName, color: "#557A66" }); await api.put(`/api/tasks/${taskId}/labels`, { labelIds: [...(assignedLabels.data || []).map((x) => x.id), created.data.id] }); setLabelName(""); }); }}>
         <input aria-label={translate("Nova etiqueta")} value={labelName} onChange={(e) => setLabelName(e.target.value)} placeholder={translate("Nova etiqueta")} maxLength={50} />
         <button className="button secondary" disabled={!workspaceId || !labelName.trim()}>{translate("Adicionar")}</button>
       </form>
       {labels.data?.map((label) => <label key={label.id} className="task-label"><input type="checkbox" checked={!!assignedLabels.data?.some((x) => x.id === label.id)} onChange={(e) => void act(() => api.put(`/api/tasks/${taskId}/labels`, { labelIds: e.target.checked ? [...(assignedLabels.data || []).map((x) => x.id), label.id] : (assignedLabels.data || []).filter((x) => x.id !== label.id).map((x) => x.id) }))} /><i style={{ background: label.color }} />{label.name}</label>)}
     </section>
-    <section><h2>{translate("Dependências")}</h2>
+    <section hidden={section !== "all" && section !== "organization"}><h2>{translate("Dependências")}</h2>
       <form className="inline-form" onSubmit={(e) => { e.preventDefault(); void act(() => api.post(`/api/tasks/${taskId}/dependencies`, { dependsOnTaskId: dependencyId })); setDependencyId(""); }}>
         <select aria-label={translate("Tarefa pré-requisito")} value={dependencyId} onChange={(e) => setDependencyId(e.target.value)}><option value="">{translate("Selecione uma tarefa")}</option>{taskOptions.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select>
         <button className="button secondary" disabled={!dependencyId}>{translate("Vincular")}</button>
       </form>
       {dependencies.data?.map((item) => <div className="task-extra-row" key={item.dependsOnTaskId}><span>{item.title} · {item.status}</span><button className="quiet" onClick={() => void act(() => api.delete(`/api/tasks/${taskId}/dependencies/${item.dependsOnTaskId}`))}>{translate("Remover")}</button></div>)}
     </section>
-    <section><h2>{translate("Comentários")}</h2>
+    <section hidden={section !== "all" && section !== "comments"}><h2>{translate("Comentários")}</h2>
       <form onSubmit={(e) => { e.preventDefault(); void act(async () => { await api.post(`/api/tasks/${taskId}/comments`, { content, mentionedUserIds: mentioned }); setContent(""); setMentioned([]); }); }}>
         <textarea value={content} onChange={(e) => setContent(e.target.value)} maxLength={2000} required placeholder={translate("Escreva um comentário…")} />
         <label>{translate("Mencionar participantes")} <select multiple value={mentioned} onChange={(e) => setMentioned(Array.from(e.target.selectedOptions, (option) => option.value))}>{members.data?.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
         <button className="button" disabled={!content.trim()}>{translate("Comentar")}</button>
       </form>
+      {comments.isLoading && <p role="status">{translate("Carregando…")}</p>}
+      {comments.isError && <p role="alert">{translate("Não foi possível carregar os comentários.")} <button className="quiet" onClick={() => void comments.refetch()}>{translate("Tentar novamente")}</button></p>}
+      {!comments.isLoading && !comments.isError && !comments.data?.length && <p className="muted">{translate("Nenhum comentário ainda. Registre uma decisão ou uma atualização sobre esta tarefa.")}</p>}
       {comments.data?.map((comment) => <article className="task-comment" key={comment.id}><strong>{comment.authorName}</strong><time>{new Date(comment.createdAt).toLocaleString()}</time><p>{comment.content}</p></article>)}
     </section>
     </fieldset>

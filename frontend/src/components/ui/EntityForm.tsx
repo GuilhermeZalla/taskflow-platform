@@ -1,6 +1,6 @@
 import { t as translate, localizeError } from "@/i18n/core";
 import { useLanguage } from "@/i18n/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, handleApiError } from "@/services/api";
@@ -22,8 +22,11 @@ type RecordData = {
 };
 export function EntityForm({ kind, recordId, initialStatus, initialProjectId, onComplete }: { kind: "workspaces" | "projects" | "tasks"; recordId?: string; initialStatus?: string; initialProjectId?: string; onComplete?: () => void }) {
   useLanguage();
+  const [section, setSection] = useState("details");
+  const dirty = useRef(false);
   const { id: routeId } = useParams();
   const id = recordId ?? routeId;
+  useEffect(() => { dirty.current = false; setSection("details"); }, [id, kind]);
   const task = kind === "tasks",
     space = kind === "workspaces";
   const [params] = useSearchParams();
@@ -46,7 +49,7 @@ export function EntityForm({ kind, recordId, initialStatus, initialProjectId, on
     queryFn: async () => (await api.get<RecordData>("/api/" + kind + "/" + id)).data,
   });
   useEffect(() => {
-    if (record.data) {
+    if (record.data && !dirty.current) {
       const r = record.data;
       setName(r.title || r.name || "");
       setDescription(r.description || "");
@@ -117,9 +120,11 @@ export function EntityForm({ kind, recordId, initialStatus, initialProjectId, on
         }
       />
       <Feedback loading={!!id && record.isLoading} error={!!record.error} retry={record.refetch}>
-        <div className="form-layout">
+        {task && id && <nav className="task-section-nav" aria-label={translate("Seções da tarefa")}>{[["details","Detalhes"],["checklist","Checklist"],["comments","Comentários"],["organization","Organização"]].map(([key,label]) => <button key={key} aria-pressed={section === key} onClick={() => setSection(key!)}>{translate(label!)}</button>)}</nav>}
+        <div className={"form-layout" + (task ? " task-editor-panel" : "")} hidden={task && !!id && section !== "details"}>
           <form
             className="editor-form"
+            onChange={() => { dirty.current = true; }}
             onSubmit={async (e) => {
               e.preventDefault();
               setError("");
@@ -343,7 +348,7 @@ export function EntityForm({ kind, recordId, initialStatus, initialProjectId, on
           </aside>
         </div>
       </Feedback>
-      {task && id && record.data && <TaskCollaboration taskId={id} projectId={record.data.projectId || ""} />}
+      {task && id && record.data && <div className="task-editor-panel" hidden={section === "details"}><TaskCollaboration taskId={id} projectId={record.data.projectId || ""} section={section} /></div>}
     </>
   );
 }

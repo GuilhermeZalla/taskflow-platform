@@ -153,7 +153,7 @@ export function Projects() {
                 {items.map(({ project, total, completed, percent }) => (
                   <tr key={project.id}>
                     <td data-label="Projeto" className="project-name-cell">
-                      <Link to={"/tasks?projectId=" + project.id}>{project.name}</Link>
+                      <Link to={"/projects/" + project.id}>{project.name}</Link>
                       <p>{project.description || translate("Sem descrição adicionada.")}</p>
                       <span className="project-context">
                         {query.data?.spaces.find((space) => space.id === project.workspaceId)

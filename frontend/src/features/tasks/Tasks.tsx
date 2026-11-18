@@ -18,6 +18,7 @@ export function Tasks() {
   const query = useWorkData();
   const cache = useQueryClient();
   const [busy, setBusy] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
   const orderKey = "taskflow.tasks.order." + (isDemo() ? "demo" : "account");
@@ -236,6 +237,18 @@ export function Tasks() {
           />
         </label>
         <label>
+          {translate("Ordenar")}{" "}
+          <select value={filters.sort} onChange={(e) => update("sort", e.target.value)}>
+            <option value="manual">{translate("Ordem manual")}</option>
+            <option value="priority">{translate("Prioridade")}</option>
+            <option value="deadline">{translate("Prazo")}</option>
+            <option value="name">{translate("Nome")}</option>
+          </select>
+        </label>
+      </div>
+      <button className="button secondary task-filter-toggle" aria-expanded={filtersOpen} aria-controls="task-secondary-filters" onClick={() => setFiltersOpen(value => !value)}>{translate(filtersOpen ? "Ocultar filtros" : "Mais filtros")}</button>
+      <div id="task-secondary-filters" className="task-secondary-filters" hidden={!filtersOpen}>
+        <label>
           {translate("Projeto")}{" "}
           <select value={filters.projectId} onChange={(e) => update("projectId", e.target.value)}>
             <option value="">{translate("Todos os projetos")}</option>
@@ -268,16 +281,8 @@ export function Tasks() {
             ))}
           </select>
         </label>
-        <label>
-          {translate("Ordenar")}{" "}
-          <select value={filters.sort} onChange={(e) => update("sort", e.target.value)}>
-            <option value="manual">{translate("Ordem manual")}</option>
-            <option value="priority">{translate("Prioridade")}</option>
-            <option value="deadline">{translate("Prazo")}</option>
-            <option value="name">{translate("Nome")}</option>
-          </select>
-        </label>
       </div>
+      <div className="active-task-filters" role="group" aria-label={translate("Filtros ativos")}>{([ ["search", filters.search, filters.search], ["projectId",filters.projectId, query.data?.projects.find(p => p.id === filters.projectId)?.name || filters.projectId], ["status", filters.status === "all" ? "" : filters.status,statusLabel(filters.status)], ["priority",filters.priority === "all" ? "" : filters.priority,statusLabel(filters.priority)] ]).filter(([,value]) => !!value).map(([key,,label]) => <button className="filter-token" key={key} onClick={() => update(key!, "")} aria-label={translate("Remover filtro") + ": " + label}>{label} <span aria-hidden="true">×</span></button>)}</div>
       <div className="project-results">
         <span role="status">
           {items.length} {items.length === 1 ? translate("tarefa") : translate("tarefas")}
@@ -292,7 +297,7 @@ export function Tasks() {
             </button>
           ))}
         </div>
-        <button className="quiet" onClick={() => setParams({ view })}>
+        <button className="quiet" onClick={() => setParams({ view, sort: filters.sort })}>
           {translate("Limpar filtros")}{" "}
         </button>
       </div>

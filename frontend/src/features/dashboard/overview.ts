@@ -98,3 +98,20 @@ export function formatDeadline(value: string) {
   const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(value + "T12:00:00") : new Date(value);
   return new Intl.DateTimeFormat(getLocale(), { day: "2-digit", month: "short" }).format(date);
 }
+
+export function scopeWork<P extends {id:string}, T extends {projectId:string;assignedToId?:string|null}>(projects:P[], tasks:T[], mine:boolean, userId?:string) {
+  if (!mine) return {projects,tasks};
+  const selected = userId ? tasks.filter(task => task.assignedToId === userId) : [];
+  const ids = new Set(selected.map(task => task.projectId));
+  return {projects:projects.filter(project => ids.has(project.id)),tasks:selected};
+}
+export function groupPriorities<T extends {status:string;dueDate?:string|null}>(tasks:T[], now=new Date()) {
+  const today = new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
+  const groups: Record<"late"|"today"|"upcoming"|"undated",T[]> = {late:[],today:[],upcoming:[],undated:[]};
+  for (const task of tasks) {
+    if (isCompleted(task.status)) continue;
+    const date = task.dueDate ? new Date(task.dueDate.slice(0,10)+"T00:00:00").getTime() : NaN;
+    groups[!Number.isFinite(date) ? "undated" : date<today ? "late" : date===today ? "today" : "upcoming"].push(task);
+  }
+  return groups;
+}

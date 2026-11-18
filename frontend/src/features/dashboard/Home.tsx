@@ -6,10 +6,17 @@ import { Link } from "react-router-dom";
 import { api } from "@/services/api";
 import type { Project, Task, Workspace } from "@/types";
 import { PageHeading, Feedback, action, normalized, statusLabel } from "@/components/ui/Shared";
-import { summarizeOverview, formatDeadline } from "./overview";
+import { useCurrentUser } from "@/features/work/useCurrentUser";
+import { isDemo, loadDemoExamples } from "@/services/demo";
+import { useQueryClient } from "@tanstack/react-query";
+import { summarizeOverview, formatDeadline, scopeWork, groupPriorities } from "./overview";
 export function Home() {
   useLanguage();
   const [workspaceId, setWorkspaceId] = useState("");
+  const [mine, setMine] = useState(false);
+  const [exampleMessage, setExampleMessage] = useState("");
+  const currentUser = useCurrentUser();
+  const cache = useQueryClient();
   const query = useQuery({
     queryKey: ["overview"],
     retry: 1,
@@ -22,11 +29,13 @@ export function Home() {
       return { tasks: tasks.data, projects: projects.data, spaces: spaces.data };
     },
   });
+  const scoped = scopeWork(query.data?.projects || [],query.data?.tasks || [],mine,currentUser.id);
   const summary = summarizeOverview(
-    query.data?.projects || [],
-    query.data?.tasks || [],
+    scoped.projects,
+    scoped.tasks,
     workspaceId,
   );
+  const groups = groupPriorities(summary.priorities);
   const selected = query.data?.spaces.find((s) => s.id === workspaceId);
   return (
     <>
@@ -37,6 +46,13 @@ export function Home() {
         action={action("/tasks/create", translate("Nova tarefa"))}
       />
       <Feedback loading={query.isLoading} error={!!query.error} retry={query.refetch}>
+        <div className="work-scope-switch" role="group" aria-label={translate("Escopo do trabalho")}>
+          <button aria-pressed={mine} disabled={!currentUser.id} onClick={() => setMine(true)}>{translate("Meu trabalho")}</button>
+          <button aria-pressed={!mine} onClick={() => setMine(false)}>{translate("Toda a equipe")}</button>
+          {isDemo() && <button className="quiet" onClick={() => { try { loadDemoExamples(); void cache.invalidateQueries(); setExampleMessage("Exemplos carregados. Suas alterações foram preservadas."); } catch { setExampleMessage("Não foi possível carregar os exemplos neste navegador."); } }}>{translate("Carregar exemplos")}</button>}
+        </div>
+        {exampleMessage && <p role="status" className="notice">{translate(exampleMessage)}</p>}
+        {currentUser.error && <p className="muted">{translate("Não foi possível identificar sua conta. A visão da equipe continua disponível.")}</p>}
         <div className="overview-scope">
           <label htmlFor="overview-workspace">
             {translate("Espaço de trabalho")}{" "}
@@ -84,8 +100,8 @@ export function Home() {
             <p className="section-description">
               {translate("Prioridade mais alta primeiro; depois, prazo de entrega.")}{" "}
             </p>
-            {summary.priorities.slice(0, 5).map((t) => (
-              <Link to={"/tasks?projectId=" + t.projectId} className="task-line" key={t.id}>
+            {Object.entries(groups).filter(([, tasks]) => tasks.length).map(([group, tasks]) => <section className="priority-group" key={group} aria-label={translate(({late:"Atrasadas",today:"Hoje",upcoming:"Próximos dias",undated:"Sem prazo"} as Record<string,string>)[group]!)}><h3>{translate(({late:"Atrasadas",today:"Hoje",upcoming:"Próximos dias",undated:"Sem prazo"} as Record<string,string>)[group]!)} <span>{tasks.length}</span></h3>{tasks.slice(0,3).map((t) => (
+              <Link to={"/tasks/" + t.id + "/edit"} className="task-line" key={t.id}>
                 <span aria-hidden="true" className={"task-check " + normalized(t.status)} />
                 <div>
                   <strong>{t.title}</strong>
@@ -99,18 +115,18 @@ export function Home() {
                 </div>
                 <span className={"badge " + normalized(t.priority)}>{statusLabel(t.priority)}</span>
               </Link>
-            ))}
+            ))}</section>)}
             {!summary.priorities.length && (
               <div className="overview-empty">
                 <h3>
-                  {summary.tasks.length
+                  {mine ? translate("Nenhuma tarefa em aberto atribuída a você") : summary.tasks.length
                     ? translate("Tudo em dia neste espaço")
                     : translate("Seu próximo passo começa aqui")}
                 </h3>
                 <p>
-                  {summary.tasks.length
+                  {mine ? translate("Consulte toda a equipe para acompanhar as outras entregas.") : summary.tasks.length
                     ? translate("Todas as tarefas foram concluídas.")
-                    : translate("Organize uma frente de trabalho e depois adicione suas tarefas.")}
+                    : translate("Crie um projeto para reunir tarefas, definir responsáveis e acompanhar prazos.")}
                 </p>
                 <Link to={summary.projects.length ? "/tasks/create" : "/projects/create"}>
                   {summary.projects.length ? translate("Criar tarefa") : translate("Criar projeto")}{" "}
@@ -121,13 +137,13 @@ export function Home() {
           </section>
           <section className="project-overview" aria-labelledby="progress-title">
             <div className="section-heading">
-              <h2 id="progress-title">{translate("Progresso dos projetos")}</h2>
+              <h2 id="progress-title">{translate(mine ? "Meu progresso nos projetos" : "Progresso dos projetos")}</h2>
               <Link to="/projects">{translate("Ver todos →")}</Link>
             </div>
             {summary.progress.slice(0, 4).map(({ project, total, completed, percent }, i) => (
               <Link
                 className="project-row project-progress-row"
-                to={"/tasks?projectId=" + project.id}
+                to={"/projects/" + project.id}
                 key={project.id}
               >
                 <span className="project-index">{String(i + 1).padStart(2, "0")}</span>
@@ -161,7 +177,7 @@ export function Home() {
             {!summary.progress.length && (
               <div className="overview-empty">
                 <h3>{translate("Nenhum projeto neste espaço")}</h3>
-                <p>{translate("Um projeto reúne as tarefas de uma mesma entrega.")}</p>
+                <p>{translate("Crie um projeto para reunir tarefas, definir responsáveis e acompanhar prazos.")}</p>
               </div>
             )}
             <Link className="text-action" to="/projects/create">

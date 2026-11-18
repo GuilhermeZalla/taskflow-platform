@@ -89,6 +89,36 @@ const initial = {
     },
   ],
 };
+initial.projects.push({id:"delivery",workspaceId:"studio",name:"Entrega do design system",description:"Componentes e documentação entregues à equipe.",status:"Completed",startDate:exampleDate(-15),dueDate:exampleDate(-1)});
+initial.tasks.push(
+  {id:"t5",projectId:"delivery",title:"Publicar biblioteca de componentes",description:"Entrega concluída e revisada pela equipe.",status:"Done",priority:"Medium",dueDate:exampleDate(-1),assignedToId:"demo",assignedToName:"Usuário de demonstração"},
+  {id:"t6",projectId:"app",title:"Revisar acessibilidade dos formulários",description:"Conferir teclado, foco e mensagens antes da entrega.",status:"Review",priority:"High",dueDate:exampleDate(2),assignedToId:"demo",assignedToName:"Usuário de demonstração"}
+);
+const exampleTask = initial.tasks.find(task => task.id === "t3")!;
+exampleTask.assignedToId="demo"; exampleTask.assignedToName="Usuário de demonstração"; exampleTask.dueDate=exampleDate(0);
+initial.tasks.find(task => task.id === "t2")!.dueDate=exampleDate(-2);
+const collaborationExamples = {
+  labels:[{id:"sample-ux",workspaceId:"studio",name:"Acessibilidade",color:"#557A66"}],
+  taskLabels:[{taskId:"t6",labelId:"sample-ux"}],
+  subtasks:[{id:"sample-check-1",taskId:"t6",title:"Conferir navegação por teclado",isCompleted:true,createdAt:exampleDate(-1)},{id:"sample-check-2",taskId:"t6",title:"Revisar mensagens de erro",isCompleted:false,createdAt:exampleDate(0)}],
+  comments:[{id:"sample-comment",taskId:"t6",userId:"camila",authorName:"Camila Nunes",content:"Navegação revisada. Falta conferir as mensagens de orientação.",createdAt:exampleDate(-1)}],
+  taskDependencies:[{taskId:"t6",dependsOnTaskId:"t4"}]
+};
+const initialDemo = {...initial,...collaborationExamples};
+export function loadDemoExamples() {
+  if (!isDemo()) return;
+  const stored = localStorage.getItem(key);
+  const data = stored ? JSON.parse(stored) : {};
+  for (const [collection, samples] of Object.entries({...initialDemo,members:seedMembers})) {
+    const current = data[collection] || [];
+    for (const sample of samples) {
+      const identity = (value:Record<string,unknown>) => value["id"] || [value["taskId"],value["labelId"] || value["dependsOnTaskId"]].join(":");
+      if (!current.some((record:Record<string,unknown>) => identity(record) === identity(sample))) current.push(sample);
+    }
+    data[collection] = current;
+  }
+  localStorage.setItem(key, JSON.stringify(data));
+}
 export const demoStorageKey = key;
 export type DemoMember = {
   id: string;
@@ -118,6 +148,7 @@ export type UserNotification = {
   createdAt: string;
 };
 const seedMembers: DemoMember[] = [
+  {id:"demo",name:"Usuário de demonstração",email:"demo@example.invalid",role:"Colaborador",workspaceId:"studio"},
   {
     id: "camila",
     name: "Camila Nunes",
@@ -150,6 +181,17 @@ const sampleCopy: Record<string, string> = {
     "Review guidance messages and error states.",
   "Definir estrutura dos formulários": "Define form structure",
   "Documentar campos e comportamentos.": "Document fields and behavior.",
+  "Entrega do design system": "Design system delivery",
+  "Componentes e documentação entregues à equipe.": "Components and documentation delivered to the team.",
+  "Publicar biblioteca de componentes": "Publish component library",
+  "Entrega concluída e revisada pela equipe.": "Delivery completed and reviewed by the team.",
+  "Revisar acessibilidade dos formulários": "Review form accessibility",
+  "Conferir teclado, foco e mensagens antes da entrega.": "Review keyboard access, focus and messages before delivery.",
+  "Usuário de demonstração": "Demo user",
+  "Acessibilidade": "Accessibility",
+  "Conferir navegação por teclado": "Review keyboard navigation",
+  "Revisar mensagens de erro": "Review error messages",
+  "Navegação revisada. Falta conferir as mensagens de orientação.": "Navigation reviewed. Guidance messages still need a review.",
   "Camila Nunes": "Camila Nunes",
   "Renato Lima": "Renato Lima",
 };
@@ -164,7 +206,7 @@ function localizeSample(value: any): any {
     Object.entries(value).map(([field, content]) => [
       field,
       typeof content === "string" &&
-      ["name", "title", "description", "assignedToName"].includes(field)
+      ["name", "title", "description", "assignedToName", "content"].includes(field)
         ? (copy[content] ?? content)
         : localizeSample(content),
     ]),
@@ -297,7 +339,7 @@ function demoNestedResource(
 }
 
 export async function demoAdapter(config: any) {
-  const db = JSON.parse(localStorage.getItem(key) || JSON.stringify(initial)) as Record<
+  const db = JSON.parse(localStorage.getItem(key) || JSON.stringify(initialDemo)) as Record<
     string,
     Array<Record<string, any>>
   >;
